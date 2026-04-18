@@ -1,66 +1,154 @@
 # AgentRewind
 
-AgentRewind is a multi-agent debugger for failed LLM workflows. It loads a bad trace, asks OpenAI to identify the root-cause step, lets you rewrite that step, replays the downstream agents from the fork point, and then turns the fix into a reusable regression eval.
+<p align="center">
+  <img src="docs/images/agentrewind-readme-hero.png" alt="AgentRewind hero banner" />
+</p>
 
-It now includes nine deeper debugging capabilities:
+<p align="center">
+  <strong>AgentRewind</strong> is a debugger for failed multi-agent AI runs.<br />
+  It finds the broken step, explains the failure in plain English, lets you patch that step, replays the downstream branch, and turns the fix into a reusable test.
+</p>
 
-- deterministic tool snapshots for replaying captured tool steps without resampling them
-- contradiction detection across agent claims so consensus failures are explicit
-- memory provenance links that show which earlier step introduced a fact carried into the final answer
-- cross-trace failure clustering so recurring failure families are grouped together
-- automatic repair suggestions that propose workflow, prompt, memory, or abstention fixes
-- persistent memory corruption detection for bad facts that keep poisoning later steps
-- uncertainty propagation so weak evidence does not silently become a confident answer
-- versioned environment snapshots and replay audits so forked runs explain what was deterministic versus simulated
-- automatic import adapters for LangGraph, CrewAI, AutoGen, OpenAI Agents, native AgentRewind traces, and generic JSON
+<p align="center">
+  FastAPI | React | TypeScript | OpenAI-compatible debugging flow | Import adapters for common agent frameworks
+</p>
 
-## Stack
+## What AgentRewind Is
 
-- Backend: FastAPI + Pydantic + OpenAI Python SDK
-- Frontend: Vite + React + TypeScript
-- UI direction: minimalist dark cyberpunk terminal with scientific-instrument accents
+Most agent tooling today is still built around logs, traces, and final-output evals. That helps you see that something went wrong, but not why the system failed, where the failure started, how it propagated through other agents, or whether a proposed fix would actually work downstream.
 
-## Project Layout
+AgentRewind is built for that missing layer.
 
-- `backend/` FastAPI API, demo traces, diagnosis/replay/eval engines
-- `frontend/` React app with the three-panel debugger UI
+It treats a failed agent run like a debuggable execution graph:
 
-## Quick Start
+- inspect the full run step by step
+- find the likely root-cause step
+- trace contradictions, stale tools, and bad memory writes
+- patch the broken step instead of rerunning the whole workflow blindly
+- replay the downstream branch from that point
+- compare the original output against the repaired outcome
+- turn the successful repair into a regression test
 
-Run AgentRewind from a single terminal:
+## Why Current Agent Tools Are Not Enough
+
+Most current tools fall into one of four buckets:
+
+- **Trace viewers** show what happened, but they do not tell you which step actually caused the failure.
+- **Eval dashboards** score the final answer, but they do not explain how the system got there.
+- **Prompt playgrounds** let you edit a prompt, but they do not show how that fix changes the rest of a multi-agent workflow.
+- **Observability products** capture spans and events, but usually stop short of contradiction detection, memory corruption tracking, deterministic replay, or cross-trace failure clustering.
+
+That gap matters because real multi-agent failures are rarely just "the last answer was wrong." They are usually caused by earlier issues like stale retrieval, hidden contradictions, bad handoffs, tool misuse, or a wrong fact getting written into memory and silently poisoning later steps.
+
+## How AgentRewind Solves That
+
+AgentRewind adds the missing debugging layer on top of multi-agent traces:
+
+- **Root-cause diagnosis** identifies the most likely step where the run first went off track.
+- **Counterfactual replay** lets you edit that step and see what the rest of the system would do if the failure were corrected there.
+- **Deterministic tool snapshots** reuse captured tool results when replay can be exact instead of simulated.
+- **Contradiction detection** surfaces when agents or sources disagree but the workflow collapses into one confident answer anyway.
+- **Memory provenance** shows where a fact entered the system and how later steps reused it.
+- **Persistent memory corruption detection** flags bad memory entries that keep spreading into future reasoning.
+- **Uncertainty propagation and abstention logic** keep low-confidence signals visible instead of allowing them to silently harden into false certainty.
+- **Cross-trace failure clustering** groups repeated failure patterns so you can fix a family of bugs, not just a single incident.
+- **Automatic repair suggestions** propose concrete changes to prompts, workflow steps, memory handling, or verification logic.
+
+## Why It Is Different From Other Tools
+
+AgentRewind is not just a run viewer and not just an eval tool.
+
+| What most tools do | What AgentRewind adds |
+| --- | --- |
+| Show spans, prompts, and outputs | Finds the likely causal step and explains the failure |
+| Let you inspect one failed run | Clusters repeated failure patterns across many runs |
+| Score final answers | Tracks contradictions, uncertainty, memory spread, and replay auditability |
+| Let you patch prompts manually | Replays the downstream branch so you can see whether the fix actually helps |
+| Work only with one framework | Imports traces from LangGraph, CrewAI, AutoGen, OpenAI Agents, AgentRewind, and generic JSON |
+
+The practical difference is that AgentRewind is built for **debugging** rather than only **logging** or **measuring**.
+
+## Core Capabilities
+
+- Deterministic replay coverage and environment/version snapshot tracking
+- Contradiction detection between agent claims and sources
+- Memory provenance links and persistent memory corruption detection
+- Uncertainty scoring with abstention recommendations
+- Cross-trace failure clustering
+- Automatic repair suggestions
+- Replay audits that explain which steps were exact vs simulated
+- Regression-eval generation from repaired runs
+- Import adapters for common multi-agent frameworks
+
+## Screenshots
+
+### Inspect a failed run
+
+The main debugger shows the run timeline, the selected step, diagnosis, saved state, and the run-wide insights panel.
+
+![AgentRewind overview](docs/images/screenshot-overview.png)
+
+### Import your own agent traces
+
+Users can import exported traces from supported frameworks or paste generic JSON directly into the debugger.
+
+![AgentRewind import flow](docs/images/screenshot-import.png)
+
+### Replay a fix and compare the new branch
+
+After editing the broken step, AgentRewind replays the downstream path, compares outputs, and shows whether the fix actually improved the run.
+
+![AgentRewind replay comparison](docs/images/screenshot-replay.png)
+
+## Supported Inputs
+
+AgentRewind can normalize and debug run data from:
+
+- LangGraph
+- CrewAI
+- AutoGen
+- OpenAI Agents SDK
+- AgentRewind native traces
+- Generic custom JSON exports
+
+Imported traces are normalized into the AgentRewind schema, clustered with existing runs, and made immediately available in the debugger UI.
+
+## Run It In One Terminal
+
+This is the fastest way to start the project locally.
 
 ```powershell
-cd D:\AgentRewind
+git clone https://github.com/Akshatkasera/codex-community-hackathon-del-AgentRewind.git
+cd codex-community-hackathon-del-AgentRewind
 .\agentrewind.bat
 ```
 
-The startup console will:
+What happens next:
 
-- print an `AGENTREWIND` banner
-- ask for your OpenAI API key
-- save that key into `backend/.env`
-- install backend dependencies if the backend venv is missing or stale
-- build the frontend when the UI sources changed
-- start one FastAPI server that serves both the API and the web UI
-- print the web link, usually `http://127.0.0.1:8000`
+1. AgentRewind prints its startup banner in the terminal.
+2. It asks for your OpenAI API key.
+3. It stores that key in `backend/.env`.
+4. It installs backend dependencies if needed.
+5. It builds the frontend if the UI changed.
+6. It starts one FastAPI server that serves both the API and the web app.
+7. It prints the local web link, usually `http://127.0.0.1:8000`.
 
-If port `8000` is busy, the launcher automatically picks the next free port.
+If `8000` is already busy, AgentRewind automatically picks the next free port.
 
-You can also run the Python launcher directly:
+You can also run the launcher directly with Python:
 
 ```powershell
-cd D:\AgentRewind
 python start_agentrewind.py
 ```
 
-Add `--open` if you want it to open the browser automatically after startup.
+Use `python start_agentrewind.py --open` if you want it to open the browser automatically after startup.
 
-## Manual Setup
+## Manual Development Setup
 
 ### Backend
 
 ```powershell
-cd D:\AgentRewind\backend
+cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -68,80 +156,103 @@ Copy-Item .env.example .env
 uvicorn main:app --reload
 ```
 
-The backend prefers `OPENAI_API_KEY` from `backend/.env`. If that is not set, it will try to extract a key from `C:\Users\aksha\Downloads\prompt.md`, which matches the file you provided. That fallback is convenient for the hackathon demo, but storing the key in `.env` is the safer long-term setup.
-
 ### Frontend
 
 ```powershell
-cd D:\AgentRewind\frontend
+cd frontend
 npm install
 npm run dev
 ```
 
-The frontend expects the API at `http://localhost:8000`.
+In development mode the frontend expects the API at `http://localhost:8000`.
 
-## Demo Flow
+## How To Use It
 
-1. Open the app in the browser. The `Refund Policy Bug` trace loads by default.
-2. Click the `KnowledgeRetriever` step in the left timeline.
-3. The center panel shows the AI diagnosis for the failure and exposes the step input for editing.
-4. Rewrite the failing retrieval prompt or tool instruction and click `Replay From This Point`.
-5. AgentRewind simulates each downstream step, renders the forked branch in the timeline, and shows the new final answer against the original output.
-6. Click `Generate Regression Eval` to convert the fix into JSON assertions you can reuse as a guardrail.
+### Debug the included demo traces
 
-## Import Adapters
+1. Open the web app.
+2. Select one of the sample failed runs from the left timeline.
+3. Let AgentRewind identify the likely problem step.
+4. Edit that step in the center panel.
+5. Click **Try Fix From Here**.
+6. Review the replayed branch and compare panel.
+7. Generate a regression test once the fix looks correct.
 
-Use `Import External Trace` in the UI to paste or load a JSON export from:
+### Debug your own custom multi-agent system
 
-- LangGraph
-- CrewAI
-- AutoGen
-- OpenAI Agents
-- AgentRewind native traces
-- generic step/event/message JSON
+1. Export your run as JSON from LangGraph, CrewAI, AutoGen, OpenAI Agents, or your own stack.
+2. Click **Import a Run** in the UI.
+3. Choose the framework hint or leave it on auto-detect.
+4. Paste or load the JSON file.
+5. Import the trace into AgentRewind.
+6. Inspect the run, patch the failing step, and replay the branch.
 
-The backend will auto-detect the framework when possible, normalize the export into the AgentRewind schema, store it under `backend/imported_traces`, and immediately make it available in the debugger timeline.
+## What Happens Under The Hood
 
-## Architecture
+### 1. Trace ingestion
 
-### Diagnosis engine
+AgentRewind loads a structured execution trace made of typed steps, tools, memory reads and writes, costs, durations, claims, and version metadata.
 
-`backend/app/diagnosis_engine.py` sends the full trace to OpenAI with a structured JSON contract. The model returns the root-cause step, failure category, confidence score, and a concrete fix recommendation.
+### 2. Trace analysis
 
-### Replay engine
+The backend enriches the trace with:
 
-`backend/app/replay_engine.py` rewrites the chosen step, then simulates each subsequent agent using the updated upstream context. If a downstream tool step has a captured snapshot, AgentRewind replays that step deterministically instead of resampling it. The replay report also includes remaining contradictions and provenance links for the forked branch.
+- contradiction findings
+- provenance links
+- memory corruption findings
+- uncertainty signals
+- repair suggestions
+- deterministic replay coverage
+- environment snapshot coverage
 
-### Eval generator
+### 3. Diagnosis
 
-`backend/app/eval_generator.py` converts the original failure and the successful fork into a regression-test spec with positive and negative assertions.
+The diagnosis engine identifies the root-cause step and explains the failure in plain language.
 
-### Trace analysis
+### 4. Replay
 
-`backend/app/analysis_engine.py` enriches every trace with:
+When you patch a step, AgentRewind forks the run from that point and replays the downstream branch. If saved tool and environment snapshots exist, it reuses them deterministically. If not, it simulates the missing steps and reports that in the replay audit.
 
-- tool snapshots for deterministic replay
-- contradiction findings between claims made by different agents
-- provenance links showing how facts move from one step into later reasoning
-- repair suggestions derived from the failure pattern
-- persistent memory corruption issues
-- per-step uncertainty signals and abstention recommendations
-- versioned environment snapshots for replay accounting
+### 5. Regression hardening
 
-### Cluster intelligence
+After a successful replay, AgentRewind can generate a reusable test case so the same failure pattern is easier to catch next time.
 
-`backend/app/cluster_engine.py` groups traces into recurring failure families. In the current demo set that means evidence-integrity failures are clustered separately from interface hallucinations, and the frontend surfaces those clusters so you can reason about repeated failure patterns instead of isolated incidents.
+## Project Structure
 
-### Import adapters
-
-`backend/app/import_adapters.py` detects common framework exports and converts them into `AgentTrace`. Each adapter preserves as much tool, memory, and version metadata as the source payload exposes, so the rest of the debugger can still run contradiction analysis, memory corruption detection, uncertainty scoring, clustering, and replay auditing on imported traces.
-
-## Demo Traces
-
-- `refund_policy_bug.json` stale policy retrieval
-- `code_review_failure.json` hallucinated Redis API
-- `research_contradiction.json` ignored contradiction between weak web evidence and stronger trial data
+```text
+backend/                 FastAPI API, trace loading, diagnosis, replay, eval generation
+frontend/                React debugger UI
+docs/images/             README hero image and screenshots
+start_agentrewind.py     One-terminal startup launcher
+agentrewind.bat          Windows launcher wrapper
+```
 
 ## Mock Mode
 
-Set `AGENTREWIND_USE_MOCK_LLM=true` in `backend/.env` if you want to iterate on the UI without making OpenAI requests.
+If you want to explore the UI without making live model calls, set:
+
+```env
+AGENTREWIND_USE_MOCK_LLM=true
+```
+
+in `backend/.env`.
+
+## Demo Traces Included
+
+- `refund_policy_bug.json` - stale refund policy retrieval
+- `code_review_failure.json` - hallucinated Redis API in a code review flow
+- `research_contradiction.json` - contradiction suppression between marketing copy and trial data
+
+## What To Build Next
+
+AgentRewind already covers core debugging needs for failed multi-agent systems, but the next frontier is even more ambitious:
+
+- richer cross-run pattern mining across large trace corpora
+- stronger automatic repair application, not just suggestion
+- deeper long-horizon memory health and contamination scoring
+- fuller environment replay with more exact external-state capture
+- stronger framework adapters and production ingestion pipelines
+
+## License
+
+This project is currently presented as a hackathon prototype. Add your preferred license before broad public reuse.
