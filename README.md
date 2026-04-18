@@ -15,9 +15,11 @@
 
 ## Demo Video
 
-Click the preview below to open the recorded product walkthrough on GitHub.
+GitHub renders animated images reliably in READMEs, so the preview below plays inline and opens the full MP4 when clicked.
 
-[![Watch the AgentRewind demo video](docs/images/screenshot-overview.png)](docs/media/agentrewind-demo.mp4)
+[![Watch the AgentRewind demo video](docs/images/agentrewind-demo-preview.gif)](docs/media/agentrewind-demo.mp4)
+
+[Download the full demo video](docs/media/agentrewind-demo.mp4)
 
 ## What AgentRewind Is
 
