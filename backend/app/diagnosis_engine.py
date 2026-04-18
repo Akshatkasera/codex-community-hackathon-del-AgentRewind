@@ -59,11 +59,16 @@ def _mock_diagnosis(trace: AgentTrace, suspected_step_id: str | None = None) -> 
 
 
 async def diagnose_failure(
-    trace: AgentTrace, suspected_step_id: str | None = None
+    trace: AgentTrace,
+    suspected_step_id: str | None = None,
+    model_override: str | None = None,
 ) -> Diagnosis:
     settings = get_settings()
     if not settings.llm_enabled:
         return _mock_diagnosis(trace, suspected_step_id)
+    selected_model = settings.resolve_model(
+        model_override, fallback=settings.primary_model
+    )
 
     trace_context = format_trace_for_llm(trace)
     user_prompt = f"""TASK: {trace.task_description}
@@ -84,7 +89,7 @@ Suspected step id: {suspected_step_id or "Not provided - infer it"}
 Identify the root cause step. Be specific and confident."""
 
     parsed = await run_json_chat(
-        model=settings.primary_model,
+        model=selected_model,
         system_prompt=DIAGNOSIS_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         temperature=0.2,

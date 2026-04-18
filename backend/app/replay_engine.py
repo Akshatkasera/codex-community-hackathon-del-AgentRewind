@@ -63,6 +63,8 @@ def _mock_replay_steps(
     original_trace: AgentTrace,
     original_steps_after: list[TraceStep],
     user_modification: str,
+    *,
+    model: str,
 ) -> list[TraceStep]:
     trace_id = original_trace.trace_id
 
@@ -122,6 +124,7 @@ def _mock_replay_steps(
                 output_response,
                 new_input=prompt_text,
                 tool_result=tool_result,
+                model=model,
             )
         )
     return replayed
@@ -171,6 +174,7 @@ async def simulate_modified_step(
     original_step: TraceStep,
     new_input: str,
     prior_context: list[TraceStep],
+    replay_model: str,
 ) -> TraceStep:
     settings = get_settings()
     if not settings.llm_enabled:
@@ -203,7 +207,7 @@ Return JSON:
 }}"""
 
     parsed = await run_json_chat(
-        model=settings.replay_model,
+        model=replay_model,
         system_prompt=None,
         user_prompt=simulation_prompt,
         temperature=0.4,
@@ -222,14 +226,19 @@ Return JSON:
         tool_args=original_step.tool_args,
         tool_result=tool_result,
         timestamp=time.time(),
-        cost_usd=estimate_cost(new_input, output_response, settings.replay_model),
+        cost_usd=estimate_cost(new_input, output_response, replay_model),
         tokens=count_tokens(output_response),
         duration_seconds=1.4,
         claims=[],
         memory_reads=list(original_step.memory_reads),
         memory_writes=[],
         environment_snapshot=original_step.environment_snapshot,
-        metadata={"is_fork": True, "source": "openai", "replay_mode": "simulated"},
+        metadata={
+            "is_fork": True,
+            "source": "openai",
+            "replay_mode": "simulated",
+            "selected_model": replay_model,
+        },
     )
 
 
@@ -238,8 +247,8 @@ async def simulate_subsequent_step(
     original_trace: AgentTrace,
     original_step: TraceStep,
     updated_prior_context: list[TraceStep],
+    replay_model: str,
 ) -> TraceStep:
-    settings = get_settings()
     simulation_prompt = f"""You are simulating the next completed step in a multi-agent system after an upstream fix changed the context.
 
 Task: {original_trace.task_description}
@@ -265,7 +274,7 @@ Return JSON:
 }}"""
 
     parsed = await run_json_chat(
-        model=settings.replay_model,
+        model=replay_model,
         system_prompt=None,
         user_prompt=simulation_prompt,
         temperature=0.35,
@@ -284,16 +293,19 @@ Return JSON:
         tool_args=original_step.tool_args,
         tool_result=tool_result,
         timestamp=time.time(),
-        cost_usd=estimate_cost(
-            original_step.input_prompt, output_response, settings.replay_model
-        ),
+        cost_usd=estimate_cost(original_step.input_prompt, output_response, replay_model),
         tokens=count_tokens(output_response),
         duration_seconds=1.25,
         claims=[],
         memory_reads=list(original_step.memory_reads),
         memory_writes=[],
         environment_snapshot=original_step.environment_snapshot,
-        metadata={"is_fork": True, "source": "openai", "replay_mode": "simulated"},
+        metadata={
+            "is_fork": True,
+            "source": "openai",
+            "replay_mode": "simulated",
+            "selected_model": replay_model,
+        },
     )
 
 
@@ -430,7 +442,10 @@ def _build_replay_audit(
 
 
 async def replay_from_fork(
-    original_trace: AgentTrace, fork_step_id: str, user_modification: str
+    original_trace: AgentTrace,
+    fork_step_id: str,
+    user_modification: str,
+    replay_model_override: str | None = None,
 ) -> Fork:
     fork_index = next(
         (index for index, step in enumerate(original_trace.steps) if step.id == fork_step_id),
@@ -443,10 +458,18 @@ async def replay_from_fork(
     original_steps_after = original_trace.steps[fork_index:]
 
     settings = get_settings()
+    selected_replay_model = settings.resolve_model(
+        replay_model_override, fallback=settings.replay_model
+    )
     deterministic_replay_step_ids: list[str] = []
     snapshot_miss_step_ids: list[str] = []
     if not settings.llm_enabled:
-        replayed_steps = _mock_replay_steps(original_trace, original_steps_after, user_modification)
+        replayed_steps = _mock_replay_steps(
+            original_trace,
+            original_steps_after,
+            user_modification,
+            model=selected_replay_model,
+        )
     else:
         fork_step = original_steps_after[0]
         if (
@@ -464,6 +487,7 @@ async def replay_from_fork(
                 original_step=fork_step,
                 new_input=user_modification,
                 prior_context=steps_before,
+                replay_model=selected_replay_model,
             )
         replayed_steps = [modified_step]
         for original_subsequent_step in original_steps_after[1:]:
@@ -480,6 +504,7 @@ async def replay_from_fork(
                     original_trace=original_trace,
                     original_step=original_subsequent_step,
                     updated_prior_context=steps_before + replayed_steps,
+                    replay_model=selected_replay_model,
                 )
             replayed_steps.append(new_step)
 
@@ -536,7 +561,7 @@ async def replay_from_fork(
         original_steps_after=original_steps_after,
         replayed_steps=replayed_steps,
         deterministic_replay_step_ids=deterministic_replay_step_ids,
-        settings_replay_model=settings.replay_model,
+        settings_replay_model=selected_replay_model,
     )
 
     return Fork(

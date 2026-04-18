@@ -40,8 +40,8 @@ export function ComparePanel({
       <section className="panel compare-panel empty-panel">
         <div className="empty-state">
           <p className="empty-symbol">&lt;/&gt;</p>
-          <h2>Comparison appears after trace load</h2>
-          <p>AgentRewind will render trace intelligence and replay output here.</p>
+          <h2>Results appear after a run loads</h2>
+          <p>AgentRewind will show what changed and whether the fix helped.</p>
         </div>
       </section>
     )
@@ -53,8 +53,8 @@ export function ComparePanel({
   return (
     <section className="panel compare-panel">
       <div className="panel-header">
-        <p className="eyebrow">Diff / Compare</p>
-        <h2>{fork ? 'Fork Outcome' : 'Trace Intelligence'}</h2>
+        <p className="eyebrow">Compare</p>
+        <h2>{fork ? 'What Changed' : 'Run Insights'}</h2>
       </div>
 
       <div className="signal-list">
@@ -72,15 +72,15 @@ export function ComparePanel({
 
       <div className="metric-row">
         <div className="metric-card">
-          <span className="metric-label">Snapshot Coverage</span>
+          <span className="metric-label">Saved Tool Data</span>
           <strong>{analysis ? formatPercent(analysis.deterministic_replay_coverage) : 'n/a'}</strong>
         </div>
         <div className="metric-card">
-          <span className="metric-label">Environment Coverage</span>
+          <span className="metric-label">Saved Version Data</span>
           <strong>{analysis ? formatPercent(analysis.environment_coverage) : 'n/a'}</strong>
         </div>
         <div className="metric-card">
-          <span className="metric-label">Final Uncertainty</span>
+          <span className="metric-label">Risk Score</span>
           <strong>{analysis ? analysis.final_uncertainty.toFixed(2) : 'n/a'}</strong>
         </div>
       </div>
@@ -88,7 +88,7 @@ export function ComparePanel({
       {analysis ? (
         <>
           <div className="inspector-block">
-            <label className="field-label">Automatic Repair Suggestions</label>
+            <label className="field-label">Suggested Fixes</label>
             <div className="signal-list">
               {analysis.repair_suggestions.map((suggestion) => (
                 <div key={suggestion.suggestion_id} className="signal-card">
@@ -104,7 +104,7 @@ export function ComparePanel({
           </div>
 
           <div className="inspector-block">
-            <label className="field-label">Persistent Memory Corruption</label>
+            <label className="field-label">Wrong Memory That Keeps Spreading</label>
             {analysis.memory_corruption_issues.length > 0 ? (
               <div className="signal-list">
                 {analysis.memory_corruption_issues.map((issue) => (
@@ -118,12 +118,12 @@ export function ComparePanel({
                 ))}
               </div>
             ) : (
-              <p className="panel-copy">No persistent memory corruption detected in this trace.</p>
+              <p className="panel-copy">No repeated memory problem was found in this run.</p>
             )}
           </div>
 
           <div className="inspector-block">
-            <label className="field-label">Uncertainty / Abstention</label>
+            <label className="field-label">Low Confidence Warnings</label>
             <div className="signal-list">
               {analysis.uncertainty_signals.map((signal) => (
                 <div key={signal.step_id} className="signal-card">
@@ -142,8 +142,8 @@ export function ComparePanel({
       {!fork ? (
         <div className="empty-state intelligence-empty">
           <p className="empty-symbol">::</p>
-          <h2>Replay to inspect the counterfactual branch</h2>
-          <p>The system intelligence above is computed from the broken trace. Replay adds branch-level audit data.</p>
+          <h2>Run a retry to see the new path</h2>
+          <p>The cards above explain the original problem. Retry adds a side-by-side result.</p>
         </div>
       ) : (
         <>
@@ -168,15 +168,15 @@ export function ComparePanel({
 
           {fork.replay_audit ? (
             <div className="assessment-box">
-              <span className="assessment-status">REPLAY AUDIT</span>
-              <p>Snapshot coverage: {formatPercent(fork.replay_audit.snapshot_coverage)}</p>
-              <p>Deterministic steps: {fork.replay_audit.deterministic_step_ids.join(', ') || 'none'}</p>
-              <p>Simulated steps: {fork.replay_audit.simulated_step_ids.join(', ') || 'none'}</p>
+              <span className="assessment-status">RETRY CHECK</span>
+              <p>Saved tool data used: {formatPercent(fork.replay_audit.snapshot_coverage)}</p>
+              <p>Exact replay steps: {fork.replay_audit.deterministic_step_ids.join(', ') || 'none'}</p>
+              <p>Estimated steps: {fork.replay_audit.simulated_step_ids.join(', ') || 'none'}</p>
               <p>
-                Version mismatches:{' '}
+                Version changes:{' '}
                 {fork.replay_audit.version_mismatch_step_ids.join(', ') || 'none'}
               </p>
-              <p>Missing artifacts: {fork.replay_audit.missing_artifacts.join(', ') || 'none'}</p>
+              <p>Missing saved data: {fork.replay_audit.missing_artifacts.join(', ') || 'none'}</p>
             </div>
           ) : null}
 
@@ -186,12 +186,12 @@ export function ComparePanel({
             onClick={onGenerateEval}
             disabled={isGeneratingEval}
           >
-            {isGeneratingEval ? 'Generating Eval...' : 'Generate Regression Eval'}
+            {isGeneratingEval ? 'Creating Test Case...' : 'Create Test Case'}
           </button>
 
           {generatedEval ? (
             <div className="eval-box">
-              <div className="compare-label">Regression Eval JSON</div>
+              <div className="compare-label">Test Case JSON</div>
               <pre className="code-surface">{JSON.stringify(generatedEval, null, 2)}</pre>
             </div>
           ) : null}
@@ -239,23 +239,23 @@ function renderForkMetrics(trace: AgentTrace, fork: Fork, diagnosis: Diagnosis |
 
       <div className="assessment-box">
         <span className="assessment-status">
-          {fork.quality_improved ? 'QUALITY IMPROVED' : 'NEEDS MORE WORK'}
+          {fork.quality_improved ? 'FIX LOOKS BETTER' : 'STILL NEEDS WORK'}
         </span>
         <p>{fork.assessment}</p>
         {diagnosis ? <p>Fix target: {diagnosis.fix_target}</p> : null}
         <p>
-          Deterministic replay: {fork.deterministic_replay_step_ids.length} steps
+          Exact replay: {fork.deterministic_replay_step_ids.length} steps
           {fork.snapshot_miss_step_ids.length > 0
-            ? `, snapshot misses on ${fork.snapshot_miss_step_ids.join(', ')}`
+            ? `, missing saved data on ${fork.snapshot_miss_step_ids.join(', ')}`
             : ''}
         </p>
         <p>
-          Remaining contradictions: {fork.remaining_contradictions.length} | Provenance links:{' '}
+          Conflicts left: {fork.remaining_contradictions.length} | Memory links:{' '}
           {fork.provenance_links.length}
         </p>
         <p>
-          Remaining memory issues: {fork.memory_corruption_issues.length} | Final abstention:{' '}
-          {fork.abstention_recommended ? 'recommended' : 'not required'}
+          Memory issues left: {fork.memory_corruption_issues.length} | Hold answer:{' '}
+          {fork.abstention_recommended ? 'recommended' : 'not needed'}
         </p>
         {fork.abstention_reason ? <p>{fork.abstention_reason}</p> : null}
       </div>

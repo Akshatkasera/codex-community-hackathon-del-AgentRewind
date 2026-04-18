@@ -34,15 +34,17 @@ const importFrameworkOptions: Array<{
   { value: 'langgraph', label: 'LangGraph', description: 'Node/event exports from LangGraph.' },
   { value: 'crewai', label: 'CrewAI', description: 'Crew and task execution exports.' },
   { value: 'autogen', label: 'AutoGen', description: 'Conversation or message exports.' },
-  { value: 'openai_agents', label: 'OpenAI Agents', description: 'Items or span exports.' },
-  { value: 'agentrewind', label: 'AgentRewind', description: 'Already normalized traces.' },
-  { value: 'generic', label: 'Generic JSON', description: 'Fallback for custom step/event lists.' },
+  { value: 'openai_agents', label: 'Agents SDK', description: 'Items or span exports.' },
+  { value: 'agentrewind', label: 'AgentRewind', description: 'Already normalized run data.' },
+  { value: 'generic', label: 'Generic JSON', description: 'Fallback for custom step or event lists.' },
 ]
 
 function App() {
   const [traceSummaries, setTraceSummaries] = useState<TraceSummary[]>([])
   const [clusters, setClusters] = useState<FailureCluster[]>([])
   const [health, setHealth] = useState<HealthResponse | null>(null)
+  const [analysisModel, setAnalysisModel] = useState('')
+  const [retryModel, setRetryModel] = useState('')
   const [activeTraceId, setActiveTraceId] = useState<string | null>(null)
   const [trace, setTrace] = useState<AgentTrace | null>(null)
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
@@ -66,6 +68,11 @@ function App() {
   const deferredSelectedStepId = useDeferredValue(selectedStepId)
 
   const selectedStep = resolveSelectedStep(trace, fork, deferredSelectedStepId)
+  const modelOptions = health?.available_models?.length
+    ? health.available_models
+    : [health?.primary_model, health?.replay_model].filter(
+        (modelName): modelName is string => Boolean(modelName),
+      )
 
   useEffect(() => {
     async function bootstrap() {
@@ -79,6 +86,8 @@ function App() {
           setTraceSummaries(traceList)
           setClusters(clusterList)
           setHealth(apiHealth)
+          setAnalysisModel(apiHealth.primary_model)
+          setRetryModel(apiHealth.replay_model)
           setActiveTraceId(traceList[0]?.trace_id ?? null)
         })
       } catch (bootstrapError) {
@@ -126,7 +135,11 @@ function App() {
     async function runDiagnosis(targetTrace: AgentTrace) {
       try {
         setIsDiagnosing(true)
-        const result = await diagnoseTrace(targetTrace.trace_id)
+        const result = await diagnoseTrace(
+          targetTrace.trace_id,
+          undefined,
+          analysisModel || health?.primary_model,
+        )
         setDiagnosis(result)
         setSelectedStepId(result.root_cause_step_id)
         const rootCauseStep = targetTrace.steps.find(
@@ -145,7 +158,7 @@ function App() {
     }
 
     runDiagnosis(trace)
-  }, [trace])
+  }, [trace, analysisModel, health?.primary_model])
 
   async function handleReplay() {
     if (!trace || !selectedStepId) {
@@ -155,7 +168,12 @@ function App() {
     try {
       setError(null)
       setIsReplaying(true)
-      const result = await replayTrace(trace.trace_id, selectedStepId, draftInput)
+      const result = await replayTrace(
+        trace.trace_id,
+        selectedStepId,
+        draftInput,
+        retryModel || health?.replay_model,
+      )
       setFork(result)
       setGeneratedEval(null)
       setSelectedStepId(result.replayed_steps[0]?.id ?? result.fork_point_step_id)
@@ -185,7 +203,7 @@ function App() {
 
   async function handleImport() {
     if (!importPayload.trim()) {
-      setError('Paste or load a JSON trace before importing.')
+      setError('Paste or load JSON run data before importing.')
       return
     }
 
@@ -230,7 +248,7 @@ function App() {
         setGeneratedEval(null)
       })
       setImportMessage(
-        `Imported ${result.trace.title} via ${result.framework_detected}. ${result.adapter_notes[0] ?? ''}`,
+        `Imported ${result.trace.title} from ${formatImportFramework(result.framework_detected)}. ${result.adapter_notes[0] ?? ''}`,
       )
       setImportPayload('')
       setImportSourceName('')
@@ -253,7 +271,7 @@ function App() {
       const contents = await file.text()
       setImportPayload(contents)
       setImportSourceName(file.name)
-      setImportMessage(`Loaded ${file.name}. Choose an adapter hint or leave auto-detect.`)
+      setImportMessage(`Loaded ${file.name}. Choose a source type or leave auto-detect.`)
     } catch {
       setError('Failed to read the selected file.')
     } finally {
@@ -272,12 +290,16 @@ function App() {
   return (
     <div className="shell">
       <header className="app-header">
-        <div>
-          <p className="eyebrow">Multi-Agent System Debugger</p>
-          <h1>AgentRewind</h1>
+        <div className="brand-block">
+          <div className="brand-row">
+            <img className="brand-logo" src="/agentrewindlogo.png" alt="AgentRewind logo" />
+            <div className="brand-copy">
+              <p className="eyebrow">Multi-agent system debugging</p>
+              <h1>AgentRewind</h1>
+            </div>
+          </div>
           <p className="headline-copy">
-            Rewind a broken agent trace, patch the failing handoff, then replay
-            the branch forward with OpenAI in the loop.
+            Open a failed run, fix the broken step, and see how the result changes.
           </p>
           <div className="hero-actions">
             <button
@@ -285,23 +307,53 @@ function App() {
               className="secondary-button compact-button"
               onClick={() => setIsImportOpen((currentValue) => !currentValue)}
             >
-              {isImportOpen ? 'Close Import' : 'Import External Trace'}
+              {isImportOpen ? 'Close Import' : 'Import a Run'}
             </button>
             {importMessage ? <p className="import-message">{importMessage}</p> : null}
           </div>
         </div>
         <div className="status-rail">
           <div className="status-card">
-            <span className="status-card-label">Mode</span>
-            <strong>{health?.llm_mode === 'openai' ? 'OpenAI Live' : 'Mock'}</strong>
+            <span className="status-card-label">Connection</span>
+            <strong>{health?.llm_mode === 'openai' ? 'Connected' : 'Demo Mode'}</strong>
           </div>
-          <div className="status-card">
-            <span className="status-card-label">Diagnose</span>
-            <strong>{health?.primary_model ?? '...'}</strong>
+          <div className="status-card status-card-model">
+            <span className="status-card-label">Analysis</span>
+            <strong>Choose GPT model</strong>
+            <span className="status-card-copy">
+              GPT model used to analyze the current run.
+            </span>
+            <select
+              className="status-select"
+              value={analysisModel || health?.primary_model || ''}
+              onChange={(event) => setAnalysisModel(event.target.value)}
+              disabled={health?.llm_mode !== 'openai' || modelOptions.length === 0}
+            >
+              {modelOptions.map((modelName) => (
+                <option key={`analysis-${modelName}`} value={modelName}>
+                  {modelName}
+                </option>
+              ))}
+            </select>
           </div>
-          <div className="status-card">
-            <span className="status-card-label">Replay</span>
-            <strong>{health?.replay_model ?? '...'}</strong>
+          <div className="status-card status-card-model">
+            <span className="status-card-label">Retry</span>
+            <strong>Choose GPT model</strong>
+            <span className="status-card-copy">
+              GPT model used to retry the run after your fix.
+            </span>
+            <select
+              className="status-select"
+              value={retryModel || health?.replay_model || ''}
+              onChange={(event) => setRetryModel(event.target.value)}
+              disabled={health?.llm_mode !== 'openai' || modelOptions.length === 0}
+            >
+              {modelOptions.map((modelName) => (
+                <option key={`retry-${modelName}`} value={modelName}>
+                  {modelName}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </header>
@@ -328,13 +380,13 @@ function App() {
             exit={{ opacity: 0, y: -12 }}
           >
             <div className="panel-header">
-              <p className="eyebrow">Import Adapter Layer</p>
-              <h2>Plug In An External Trace</h2>
+              <p className="eyebrow">Import Data</p>
+              <h2>Add Your Own Run</h2>
             </div>
 
             <div className="import-grid">
               <label className="import-field">
-                <span className="field-label">Framework Hint</span>
+                <span className="field-label">Source Type</span>
                 <select
                   className="import-select"
                   value={importFrameworkHint}
@@ -357,22 +409,22 @@ function App() {
               </label>
 
               <label className="import-field">
-                <span className="field-label">Title Override</span>
+                <span className="field-label">Title</span>
                 <input
                   className="import-input"
                   value={importTitleOverride}
                   onChange={(event) => setImportTitleOverride(event.target.value)}
-                  placeholder="Optional trace title"
+                  placeholder="Optional run title"
                 />
               </label>
 
               <label className="import-field import-field-wide">
-                <span className="field-label">Task Override</span>
+                <span className="field-label">Task</span>
                 <input
                   className="import-input"
                   value={importTaskDescriptionOverride}
                   onChange={(event) => setImportTaskDescriptionOverride(event.target.value)}
-                  placeholder="Optional task description for sparse exports"
+                  placeholder="Optional task description"
                 />
               </label>
             </div>
@@ -383,16 +435,16 @@ function App() {
                 Load JSON File
               </label>
               <span className="import-help">
-                {importSourceName ? `Loaded file: ${importSourceName}` : 'Or paste a framework export below.'}
+                {importSourceName ? `Loaded file: ${importSourceName}` : 'Or paste exported run data below.'}
               </span>
             </div>
 
-            <label className="field-label">Raw Trace JSON</label>
+            <label className="field-label">Run JSON</label>
             <textarea
               className="inspector-textarea import-textarea"
               value={importPayload}
               onChange={(event) => setImportPayload(event.target.value)}
-              placeholder="Paste LangGraph, CrewAI, AutoGen, OpenAI Agents, AgentRewind, or generic JSON here."
+              placeholder="Paste LangGraph, CrewAI, AutoGen, Agents SDK, AgentRewind, or generic JSON here."
             />
 
             <div className="import-actions">
@@ -402,7 +454,7 @@ function App() {
                 onClick={handleImport}
                 disabled={isImporting}
               >
-                {isImporting ? 'Importing...' : 'Import Into Debugger'}
+                {isImporting ? 'Importing...' : 'Import Run'}
               </button>
               <button
                 type="button"
@@ -420,7 +472,7 @@ function App() {
         <TimelinePanel
           traces={traceSummaries}
           activeTraceId={activeTraceId}
-          currentTraceTitle={trace?.title ?? 'Loading trace'}
+          currentTraceTitle={trace?.title ?? 'Loading run'}
           steps={trace?.steps ?? []}
           fork={fork}
           diagnosis={diagnosis}
@@ -452,9 +504,9 @@ function App() {
       </div>
 
       <footer className="footer-note">
-        <span>{isTraceLoading ? 'Loading trace...' : `${traceSummaries.length} demo traces armed`}</span>
-        <span>{health?.cluster_count ?? clusters.length} failure clusters indexed</span>
-        <span>{isDiagnosing ? 'Running AI diagnosis...' : 'Diagnosis ready'}</span>
+        <span>{isTraceLoading ? 'Loading run...' : `${traceSummaries.length} sample runs loaded`}</span>
+        <span>{health?.cluster_count ?? clusters.length} issue patterns indexed</span>
+        <span>{isDiagnosing ? 'Checking the run...' : 'Analysis ready'}</span>
       </footer>
     </div>
   )
@@ -484,6 +536,10 @@ function getErrorMessage(error: unknown) {
 
 function readMetadataString(value: unknown) {
   return typeof value === 'string' ? value : null
+}
+
+function formatImportFramework(framework: ImportFramework) {
+  return importFrameworkOptions.find((option) => option.value === framework)?.label ?? 'Imported data'
 }
 
 export default App

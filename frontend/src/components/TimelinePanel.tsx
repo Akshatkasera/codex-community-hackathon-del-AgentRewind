@@ -99,7 +99,7 @@ export function TimelinePanel({
   return (
     <aside className="panel timeline-panel">
       <div className="panel-header">
-        <p className="eyebrow">Trace Timeline</p>
+        <p className="eyebrow">Run Timeline</p>
         <h2>{currentTraceTitle}</h2>
       </div>
 
@@ -138,7 +138,7 @@ export function TimelinePanel({
               exit={{ opacity: 0, y: 12 }}
               layout
             >
-              <span>Fork</span>
+              <span>New Path</span>
             </motion.div>
           ) : null}
         </AnimatePresence>

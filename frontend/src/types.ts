@@ -238,6 +238,7 @@ export interface HealthResponse {
   status: string
   trace_count: number
   llm_mode: 'openai' | 'mock'
+  available_models: string[]
   primary_model: string
   replay_model: string
   cluster_count?: number

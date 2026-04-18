@@ -248,12 +248,14 @@ class GeneratedEval(BaseModel):
 class DiagnosisRequest(BaseModel):
     trace_id: str
     suspected_step_id: str | None = None
+    model: str | None = None
 
 
 class ReplayRequest(BaseModel):
     trace_id: str
     fork_step_id: str
     user_modification: str
+    model: str | None = None
 
 
 class EvalRequest(BaseModel):

@@ -25,7 +25,37 @@ It now includes nine deeper debugging capabilities:
 - `backend/` FastAPI API, demo traces, diagnosis/replay/eval engines
 - `frontend/` React app with the three-panel debugger UI
 
-## Setup
+## Quick Start
+
+Run AgentRewind from a single terminal:
+
+```powershell
+cd D:\AgentRewind
+.\agentrewind.bat
+```
+
+The startup console will:
+
+- print an `AGENTREWIND` banner
+- ask for your OpenAI API key
+- save that key into `backend/.env`
+- install backend dependencies if the backend venv is missing or stale
+- build the frontend when the UI sources changed
+- start one FastAPI server that serves both the API and the web UI
+- print the web link, usually `http://127.0.0.1:8000`
+
+If port `8000` is busy, the launcher automatically picks the next free port.
+
+You can also run the Python launcher directly:
+
+```powershell
+cd D:\AgentRewind
+python start_agentrewind.py
+```
+
+Add `--open` if you want it to open the browser automatically after startup.
+
+## Manual Setup
 
 ### Backend
 

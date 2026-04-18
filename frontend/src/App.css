@@ -18,6 +18,41 @@
   align-items: flex-start;
 }
 
+.brand-block {
+  max-width: 56ch;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top, rgba(56, 243, 255, 0.14), transparent 58%),
+    rgba(4, 8, 14, 0.94);
+  border: 1px solid rgba(56, 243, 255, 0.18);
+  box-shadow:
+    0 0 0 1px rgba(56, 243, 255, 0.08),
+    0 0 30px rgba(56, 243, 255, 0.16);
+  padding: 10px;
+}
+
+.brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.brand-copy .eyebrow {
+  margin: 0;
+}
+
 .headline-copy {
   max-width: 56ch;
   margin: 12px 0 0;
@@ -77,6 +112,10 @@
   gap: 6px;
 }
 
+.status-card-model {
+  gap: 10px;
+}
+
 .status-card-label,
 .metric-label,
 .field-label,
@@ -86,6 +125,27 @@
   font-size: 0.76rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.status-card-copy {
+  color: var(--text-soft);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.status-select {
+  width: 100%;
+  border: 1px solid rgba(115, 138, 171, 0.18);
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: rgba(4, 8, 14, 0.88);
+  color: var(--text-main);
+  font: inherit;
+}
+
+.status-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .error-banner {
@@ -674,6 +734,10 @@
     flex-direction: column;
   }
 
+  .brand-row {
+    align-items: flex-start;
+  }
+
   .import-grid {
     grid-template-columns: 1fr;
   }
@@ -686,6 +750,16 @@
 @media (max-width: 720px) {
   .shell {
     padding: 18px;
+  }
+
+  .brand-row {
+    gap: 12px;
+  }
+
+  .brand-logo {
+    width: 60px;
+    height: 60px;
+    border-radius: 18px;
   }
 
   .status-rail {

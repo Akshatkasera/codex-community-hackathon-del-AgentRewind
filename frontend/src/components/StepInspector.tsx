@@ -39,10 +39,7 @@ export function StepInspector({
         <div className="empty-state">
           <p className="empty-symbol">[ ]</p>
           <h2>Click any step to inspect</h2>
-          <p>
-            AgentRewind shows the failing prompt, the downstream output, and the
-            replay controls here.
-          </p>
+          <p>See the step input, output, and fix controls here.</p>
         </div>
       </section>
     )
@@ -84,7 +81,7 @@ export function StepInspector({
   return (
     <section className="panel inspector-panel">
       <div className="panel-header">
-        <p className="eyebrow">Step Inspector</p>
+        <p className="eyebrow">Step Details</p>
         <h2>{selectedStep.agent_name}</h2>
       </div>
 
@@ -108,7 +105,7 @@ export function StepInspector({
           animate={{ opacity: 1, y: 0 }}
         >
           <div className="diagnosis-headline">
-            <span>Root Cause</span>
+            <span>Problem Step</span>
             <span>{diagnosis.failure_category}</span>
           </div>
           <p className="diagnosis-text">
@@ -120,7 +117,7 @@ export function StepInspector({
 
       <div className="inspector-block">
         <label className="field-label">
-          {isForkStep ? 'Forked Input Snapshot' : 'Editable Step Input'}
+          {isForkStep ? 'Saved Input' : 'Edit This Step'}
         </label>
         <textarea
           className="inspector-textarea"
@@ -136,7 +133,7 @@ export function StepInspector({
           <pre className="code-surface">{selectedStep.output_response}</pre>
         </div>
         <div className="inspector-block">
-          <label className="field-label">Tool Context</label>
+          <label className="field-label">Tool Data</label>
           <pre className="code-surface">
             {selectedStep.tool_name
               ? `${selectedStep.tool_name}\n${formatJson(selectedStep.tool_args)}`
@@ -147,7 +144,7 @@ export function StepInspector({
 
       {selectedStep.tool_snapshot ? (
         <div className="inspector-block">
-          <label className="field-label">Deterministic Tool Snapshot</label>
+          <label className="field-label">Saved Tool Result</label>
           <pre className="code-surface">
             {JSON.stringify(selectedStep.tool_snapshot, null, 2)}
           </pre>
@@ -156,7 +153,7 @@ export function StepInspector({
 
       {selectedStep.environment_snapshot ? (
         <div className="inspector-block">
-          <label className="field-label">Versioned Environment Snapshot</label>
+          <label className="field-label">Saved App State</label>
           <pre className="code-surface">
             {JSON.stringify(selectedStep.environment_snapshot, null, 2)}
           </pre>
@@ -165,7 +162,7 @@ export function StepInspector({
 
       {uncertainty ? (
         <div className="inspector-block">
-          <label className="field-label">Uncertainty Signal</label>
+          <label className="field-label">Confidence Warning</label>
           <div className="signal-card">
             <strong>
               {uncertainty.level} | {uncertainty.score.toFixed(2)}
@@ -178,7 +175,7 @@ export function StepInspector({
 
       {contradictions.length > 0 ? (
         <div className="inspector-block">
-          <label className="field-label">Contradictions</label>
+          <label className="field-label">Conflicts</label>
           <div className="signal-list">
             {contradictions.map((finding) => (
               <div key={finding.finding_id} className="signal-card signal-card-danger">
@@ -197,7 +194,7 @@ export function StepInspector({
 
       {provenanceLinks.length > 0 ? (
         <div className="inspector-block">
-          <label className="field-label">Memory Provenance</label>
+          <label className="field-label">Where This Memory Came From</label>
           <div className="signal-list">
             {provenanceLinks.map((link) => (
               <div key={link.link_id} className="signal-card">
@@ -214,7 +211,7 @@ export function StepInspector({
 
       {memoryIssues.length > 0 ? (
         <div className="inspector-block">
-          <label className="field-label">Memory Corruption Impact</label>
+          <label className="field-label">Bad Memory Impact</label>
           <div className="signal-list">
             {memoryIssues.map((issue) => (
               <div key={issue.issue_id} className="signal-card signal-card-danger">
@@ -234,7 +231,7 @@ export function StepInspector({
           onClick={onReplay}
           disabled={isReplaying || !draftInput.trim()}
         >
-          {isReplaying ? 'Replaying...' : 'Replay From This Point'}
+          {isReplaying ? 'Trying Fix...' : 'Try Fix From Here'}
         </button>
       ) : null}
 

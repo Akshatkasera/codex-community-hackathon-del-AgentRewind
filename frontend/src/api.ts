@@ -10,7 +10,7 @@ import type {
   TraceSummary,
 } from './types'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : '')
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -51,12 +51,17 @@ export function fetchTrace(traceId: string) {
   return request<AgentTrace>(`/api/traces/${traceId}`)
 }
 
-export function diagnoseTrace(traceId: string, suspectedStepId?: string) {
+export function diagnoseTrace(
+  traceId: string,
+  suspectedStepId?: string,
+  model?: string,
+) {
   return request<Diagnosis>('/api/diagnose', {
     method: 'POST',
     body: JSON.stringify({
       trace_id: traceId,
       suspected_step_id: suspectedStepId ?? null,
+      model: model ?? null,
     }),
   })
 }
@@ -65,6 +70,7 @@ export function replayTrace(
   traceId: string,
   forkStepId: string,
   userModification: string,
+  model?: string,
 ) {
   return request<Fork>('/api/replay', {
     method: 'POST',
@@ -72,6 +78,7 @@ export function replayTrace(
       trace_id: traceId,
       fork_step_id: forkStepId,
       user_modification: userModification,
+      model: model ?? null,
     }),
   })
 }
