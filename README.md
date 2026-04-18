@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>AgentRewind</strong> is a debugger for failed multi-agent AI runs.<br />
-  It finds the broken step, explains the failure in plain English, lets you patch that step, replays the downstream branch, and turns the fix into a reusable test.
+  It finds the broken step, explains the failure, lets you patch that step, replays the downstream branch, and turns the fix into a reusable test.
 </p>
 
 <p align="center">
