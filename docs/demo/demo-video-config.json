@@ -1,0 +1,24 @@
+{
+  "port": 8010,
+  "frameworkHint": "agentrewind",
+  "tracePath": "docs/demo/importable_support_refund_trace.json",
+  "narrationPath": "docs/demo/demo-video-narration.txt",
+  "outputDir": "docs/demo-output",
+  "tts": {
+    "model": "gpt-4o-mini-tts",
+    "voice": "cedar",
+    "responseFormat": "mp3",
+    "speed": 1.0,
+    "instructions": "Speak like a sharp technical product demo narrator. Keep the tone confident, clear, and slightly energetic."
+  },
+  "waitsMs": {
+    "landing": 2500,
+    "importPanel": 1200,
+    "afterFileLoad": 1000,
+    "afterImport": 4500,
+    "afterDiagnosis": 2000,
+    "typingDelay": 18,
+    "afterTyping": 1200,
+    "afterReplay": 11000
+  }
+}

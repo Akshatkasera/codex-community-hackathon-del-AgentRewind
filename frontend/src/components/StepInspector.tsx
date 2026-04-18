@@ -79,7 +79,7 @@ export function StepInspector({
     : trace.analysis?.uncertainty_signals.find((signal) => signal.step_id === selectedStep.id) ?? null
 
   return (
-    <section className="panel inspector-panel">
+    <section className="panel inspector-panel" data-testid="step-inspector">
       <div className="panel-header">
         <p className="eyebrow">Step Details</p>
         <h2>{selectedStep.agent_name}</h2>
@@ -101,6 +101,7 @@ export function StepInspector({
       {isRootCause && diagnosis ? (
         <motion.div
           className="diagnosis-box"
+          data-testid="diagnosis-box"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -121,6 +122,7 @@ export function StepInspector({
         </label>
         <textarea
           className="inspector-textarea"
+          data-testid={isForkStep ? 'saved-step-input' : 'step-edit-input'}
           value={isForkStep ? selectedStep.input_prompt : draftInput}
           readOnly={isForkStep}
           onChange={(event) => onDraftInputChange(event.target.value)}
@@ -228,6 +230,7 @@ export function StepInspector({
         <button
           type="button"
           className="replay-button"
+          data-testid="replay-button"
           onClick={onReplay}
           disabled={isReplaying || !draftInput.trim()}
         >

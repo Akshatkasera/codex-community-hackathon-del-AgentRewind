@@ -1,0 +1,242 @@
+{
+  "trace_id": "support_refund_import_demo",
+  "title": "Support Refund Import Demo",
+  "task_description": "Answer whether a customer who purchased 45 days ago is still eligible for a refund under the current policy.",
+  "expected_output": "The current policy allows refunds only within 30 days with proof of payment, so a purchase after 45 days is not eligible for a refund.",
+  "final_output": "The customer can still request a refund because the policy allows refunds within 90 days.",
+  "failure_summary": "The run anchored on an archived 90-day campaign template instead of the current refund handbook.",
+  "tags": [
+    "demo",
+    "imported",
+    "support"
+  ],
+  "metadata": {
+    "root_cause_step_id": "s2",
+    "blame_agent": "PolicyRetriever",
+    "confidence": 96,
+    "failure_category": "stale_data",
+    "diagnosis_explanation": "The retriever pulled an archived 90-day refund template and every downstream step treated it as the current policy.",
+    "suggested_fix": "Update the retrieval step so it uses the canonical 2024 refund handbook and discards archived templates before writing to memory.",
+    "fix_target": "prompt",
+    "demo_replay_quality_improved": true,
+    "demo_replay_assessment": "The repaired branch uses the current handbook and returns the correct 30-day refund policy.",
+    "demo_replay_prompt": "Use the canonical 2024 refund handbook only. Ignore archived escalation templates or campaign documents. Extract the exact refund window and proof-of-payment requirement before writing anything to memory.",
+    "demo_replay_steps": [
+      {
+        "output_response": "Retrieved the canonical 2024 refund handbook instead of the archived template. The current policy allows refunds only within 30 days with proof of payment.",
+        "tool_result": "refund_handbook_2024.md -> effective 2024-06-01: refunds are allowed within 30 days with receipt.",
+        "claims": [
+          "Current refund window is 30 days"
+        ],
+        "memory_writes": [
+          "refund_window_days=30",
+          "policy_source=refund_handbook_2024"
+        ]
+      },
+      {
+        "output_response": "Validated the current handbook and flagged the archived 90-day template as stale. The answer must use the 30-day policy.",
+        "claims": [
+          "Archived template is stale",
+          "Current refund window is 30 days"
+        ],
+        "memory_writes": [
+          "review_status=handbook_verified"
+        ]
+      },
+      {
+        "output_response": "The customer is outside the 30-day refund window, so this purchase is not eligible for a refund under the current policy.",
+        "claims": [
+          "Customer is not eligible for a refund"
+        ],
+        "memory_writes": [
+          "final_answer_state=policy_corrected"
+        ]
+      }
+    ]
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "agent_name": "SupportPlanner",
+      "step_type": "analysis",
+      "status": "ok",
+      "input_prompt": "Customer says the purchase happened 45 days ago and asks whether a refund is still possible.",
+      "output_response": "Route the case through policy retrieval and verification before writing the final answer.",
+      "timestamp": 1713600000.0,
+      "cost_usd": 0.0041,
+      "tokens": 122,
+      "duration_seconds": 1.1,
+      "claims": [
+        "Current refund policy is needed before answering"
+      ],
+      "memory_reads": [],
+      "memory_writes": [
+        "customer_days_since_purchase=45",
+        "customer_request=refund eligibility"
+      ],
+      "environment_snapshot": {
+        "snapshot_id": "env_demo_s1",
+        "step_id": "s1",
+        "captured_at": 1713600000.0,
+        "model_name": "gpt-4o-mini",
+        "prompt_version": "planner-v2",
+        "tool_versions": [],
+        "memory_digest": "demo-mem-001",
+        "config_flags": {
+          "demo_mode": true
+        },
+        "auth_scope": "support",
+        "clock_version": "2026-04-18T00:00:00Z"
+      },
+      "metadata": {
+        "model_name": "gpt-4o-mini"
+      }
+    },
+    {
+      "id": "s2",
+      "agent_name": "PolicyRetriever",
+      "step_type": "tool",
+      "status": "warning",
+      "tool_name": "policy_search",
+      "tool_args": {
+        "query": "current refund policy for consumer purchase with proof of payment"
+      },
+      "tool_result": "archived_campaign_template_2023.md -> refunds allowed within 90 days for campaign refunds.",
+      "input_prompt": "Find the refund policy that should answer this case. Prefer the first policy match you find.",
+      "output_response": "Retrieved a refund template that says customers can request refunds within 90 days.",
+      "timestamp": 1713600004.0,
+      "cost_usd": 0.0064,
+      "tokens": 161,
+      "duration_seconds": 2.3,
+      "claims": [
+        "Refund window is 90 days"
+      ],
+      "memory_reads": [
+        "customer_days_since_purchase=45",
+        "customer_request=refund eligibility"
+      ],
+      "memory_writes": [
+        "refund_window_days=90",
+        "policy_source=archived_campaign_template_2023"
+      ],
+      "tool_snapshot": {
+        "snapshot_id": "tool_demo_s2",
+        "tool_name": "policy_search",
+        "captured_at": 1713600004.0,
+        "normalized_args": {
+          "query": "current refund policy for consumer purchase with proof of payment"
+        },
+        "result": "archived_campaign_template_2023.md -> refunds allowed within 90 days for campaign refunds.",
+        "result_digest": "digest-archived-template",
+        "deterministic_replay": true,
+        "invalidation_reason": "archived template should not be trusted as current policy"
+      },
+      "environment_snapshot": {
+        "snapshot_id": "env_demo_s2",
+        "step_id": "s2",
+        "captured_at": 1713600004.0,
+        "model_name": "gpt-4o-mini",
+        "prompt_version": "retriever-v4",
+        "tool_versions": [
+          {
+            "artifact_id": "artifact_policy_search",
+            "artifact_type": "tool",
+            "name": "policy_search",
+            "version": "2026.04.01",
+            "digest": "tool-policy-search-2026-04-01",
+            "source": "internal-tools"
+          }
+        ],
+        "memory_digest": "demo-mem-002",
+        "config_flags": {
+          "prefer_first_match": true
+        },
+        "auth_scope": "support",
+        "clock_version": "2026-04-18T00:00:04Z"
+      },
+      "metadata": {
+        "model_name": "gpt-4o-mini",
+        "source_quality": "low",
+        "source_age_days": 430
+      }
+    },
+    {
+      "id": "s3",
+      "agent_name": "PolicyReviewer",
+      "step_type": "review",
+      "status": "warning",
+      "input_prompt": "Check whether the retrieved policy is safe to use in the final answer.",
+      "output_response": "No blocking issue found. Proceed with the 90-day policy.",
+      "timestamp": 1713600008.0,
+      "cost_usd": 0.0048,
+      "tokens": 109,
+      "duration_seconds": 1.4,
+      "claims": [
+        "Retrieved policy is safe to use",
+        "Refund window is 90 days"
+      ],
+      "memory_reads": [
+        "refund_window_days=90",
+        "policy_source=archived_campaign_template_2023"
+      ],
+      "memory_writes": [
+        "review_status=approved"
+      ],
+      "environment_snapshot": {
+        "snapshot_id": "env_demo_s3",
+        "step_id": "s3",
+        "captured_at": 1713600008.0,
+        "model_name": "gpt-4o-mini",
+        "prompt_version": "reviewer-v3",
+        "tool_versions": [],
+        "memory_digest": "demo-mem-003",
+        "config_flags": {
+          "strict_review": false
+        },
+        "auth_scope": "support",
+        "clock_version": "2026-04-18T00:00:08Z"
+      },
+      "metadata": {
+        "model_name": "gpt-4o-mini"
+      }
+    },
+    {
+      "id": "s4",
+      "agent_name": "SupportResponder",
+      "step_type": "llm",
+      "status": "error",
+      "input_prompt": "Answer the customer with the approved refund policy.",
+      "output_response": "The customer can still request a refund because the policy allows refunds within 90 days.",
+      "timestamp": 1713600011.0,
+      "cost_usd": 0.0057,
+      "tokens": 135,
+      "duration_seconds": 1.2,
+      "claims": [
+        "Customer is eligible for a refund after 45 days"
+      ],
+      "memory_reads": [
+        "refund_window_days=90",
+        "policy_source=archived_campaign_template_2023",
+        "review_status=approved"
+      ],
+      "memory_writes": [],
+      "environment_snapshot": {
+        "snapshot_id": "env_demo_s4",
+        "step_id": "s4",
+        "captured_at": 1713600011.0,
+        "model_name": "gpt-4o-mini",
+        "prompt_version": "responder-v5",
+        "tool_versions": [],
+        "memory_digest": "demo-mem-004",
+        "config_flags": {
+          "answer_style": "concise"
+        },
+        "auth_scope": "support",
+        "clock_version": "2026-04-18T00:00:11Z"
+      },
+      "metadata": {
+        "model_name": "gpt-4o-mini"
+      }
+    }
+  ]
+}

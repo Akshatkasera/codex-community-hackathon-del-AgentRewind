@@ -13,6 +13,12 @@
   FastAPI | React | TypeScript | OpenAI-compatible debugging flow | Import adapters for common agent frameworks
 </p>
 
+## Demo Video
+
+Click the preview below to open the recorded product walkthrough on GitHub.
+
+[![Watch the AgentRewind demo video](docs/images/screenshot-overview.png)](docs/media/agentrewind-demo.mp4)
+
 ## What AgentRewind Is
 
 Most agent tooling today is still built around logs, traces, and final-output evals. That helps you see that something went wrong, but not why the system failed, where the failure started, how it propagated through other agents, or whether a proposed fix would actually work downstream.
@@ -223,6 +229,7 @@ After a successful replay, AgentRewind can generate a reusable test case so the 
 backend/                 FastAPI API, trace loading, diagnosis, replay, eval generation
 frontend/                React debugger UI
 docs/images/             README hero image and screenshots
+docs/media/              Demo video linked from the README
 start_agentrewind.py     One-terminal startup launcher
 agentrewind.bat          Windows launcher wrapper
 ```

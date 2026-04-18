@@ -34,6 +34,8 @@ def _build_mock_step(
     tool_result: str | None = None,
     status: str = "ok",
     model: str = "gpt-4o-mini",
+    claims: list[str] | None = None,
+    memory_writes: list[str] | None = None,
 ) -> TraceStep:
     prompt_text = new_input or original_step.input_prompt
     return TraceStep(
@@ -50,13 +52,64 @@ def _build_mock_step(
         cost_usd=estimate_cost(prompt_text, output_response, model),
         tokens=count_tokens(output_response),
         duration_seconds=1.2,
-        claims=[],
+        claims=claims or [],
         memory_reads=list(original_step.memory_reads),
-        memory_writes=[],
+        memory_writes=memory_writes or [],
         tool_snapshot=original_step.tool_snapshot,
         environment_snapshot=original_step.environment_snapshot,
         metadata={"is_fork": True, "source": "mock", "replay_mode": "simulated"},
     )
+
+
+def _normalize_text_list(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value if item is not None]
+    return [str(value)]
+
+
+def _metadata_mock_replay_steps(
+    original_trace: AgentTrace,
+    original_steps_after: list[TraceStep],
+    user_modification: str,
+    *,
+    model: str,
+) -> list[TraceStep] | None:
+    raw_steps = original_trace.metadata.get("demo_replay_steps") or original_trace.metadata.get(
+        "mock_replay_steps"
+    )
+    if not isinstance(raw_steps, list) or not raw_steps:
+        return None
+
+    replayed: list[TraceStep] = []
+    for index, original_step in enumerate(original_steps_after):
+        raw_step = raw_steps[min(index, len(raw_steps) - 1)]
+        if not isinstance(raw_step, dict):
+            continue
+        prompt_text = (
+            user_modification
+            if index == 0
+            else str(raw_step.get("input_prompt") or original_step.input_prompt)
+        )
+        replayed.append(
+            _build_mock_step(
+                original_step,
+                str(raw_step.get("output_response") or raw_step.get("output") or original_step.output_response),
+                new_input=prompt_text,
+                tool_result=(
+                    raw_step.get("tool_result")
+                    if raw_step.get("tool_result") is not None
+                    else original_step.tool_result
+                ),
+                status=str(raw_step.get("status") or "ok"),
+                model=model,
+                claims=_normalize_text_list(raw_step.get("claims")),
+                memory_writes=_normalize_text_list(raw_step.get("memory_writes")),
+            )
+        )
+
+    return replayed or None
 
 
 def _mock_replay_steps(
@@ -66,6 +119,15 @@ def _mock_replay_steps(
     *,
     model: str,
 ) -> list[TraceStep]:
+    metadata_steps = _metadata_mock_replay_steps(
+        original_trace,
+        original_steps_after,
+        user_modification,
+        model=model,
+    )
+    if metadata_steps is not None:
+        return metadata_steps
+
     trace_id = original_trace.trace_id
 
     if trace_id == "refund_policy_bug":
@@ -318,6 +380,18 @@ async def assess_quality_improvement(
     settings = get_settings()
 
     if not settings.llm_enabled:
+        if "demo_replay_quality_improved" in original_trace.metadata:
+            improved = bool(original_trace.metadata.get("demo_replay_quality_improved"))
+            assessment = str(
+                original_trace.metadata.get("demo_replay_assessment")
+                or (
+                    "Fork output moved closer to the expected answer and removed the original failure mode."
+                    if improved
+                    else "Fork output did not materially improve on the original answer."
+                )
+            )
+            return improved, assessment
+
         expected = original_trace.expected_output or ""
         improved = expected.lower() in new_output.lower() or new_output != original_output
         return improved, (

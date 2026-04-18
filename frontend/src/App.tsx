@@ -305,11 +305,16 @@ function App() {
             <button
               type="button"
               className="secondary-button compact-button"
+              data-testid="import-run-toggle"
               onClick={() => setIsImportOpen((currentValue) => !currentValue)}
             >
               {isImportOpen ? 'Close Import' : 'Import a Run'}
             </button>
-            {importMessage ? <p className="import-message">{importMessage}</p> : null}
+            {importMessage ? (
+              <p className="import-message" data-testid="import-message">
+                {importMessage}
+              </p>
+            ) : null}
           </div>
         </div>
         <div className="status-rail">
@@ -375,6 +380,7 @@ function App() {
         {isImportOpen ? (
           <motion.section
             className="import-panel"
+            data-testid="import-panel"
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
@@ -389,6 +395,7 @@ function App() {
                 <span className="field-label">Source Type</span>
                 <select
                   className="import-select"
+                  data-testid="import-framework-select"
                   value={importFrameworkHint}
                   onChange={(event) =>
                     setImportFrameworkHint(event.target.value as ImportFramework)
@@ -412,6 +419,7 @@ function App() {
                 <span className="field-label">Title</span>
                 <input
                   className="import-input"
+                  data-testid="import-title-input"
                   value={importTitleOverride}
                   onChange={(event) => setImportTitleOverride(event.target.value)}
                   placeholder="Optional run title"
@@ -422,6 +430,7 @@ function App() {
                 <span className="field-label">Task</span>
                 <input
                   className="import-input"
+                  data-testid="import-task-input"
                   value={importTaskDescriptionOverride}
                   onChange={(event) => setImportTaskDescriptionOverride(event.target.value)}
                   placeholder="Optional task description"
@@ -431,7 +440,12 @@ function App() {
 
             <div className="import-upload-row">
               <label className="trace-chip upload-chip">
-                <input type="file" accept=".json,application/json" onChange={handleImportFileChange} />
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  data-testid="import-file-input"
+                  onChange={handleImportFileChange}
+                />
                 Load JSON File
               </label>
               <span className="import-help">
@@ -442,6 +456,7 @@ function App() {
             <label className="field-label">Run JSON</label>
             <textarea
               className="inspector-textarea import-textarea"
+              data-testid="import-json-textarea"
               value={importPayload}
               onChange={(event) => setImportPayload(event.target.value)}
               placeholder="Paste LangGraph, CrewAI, AutoGen, Agents SDK, AgentRewind, or generic JSON here."
@@ -451,6 +466,7 @@ function App() {
               <button
                 type="button"
                 className="secondary-button"
+                data-testid="import-run-button"
                 onClick={handleImport}
                 disabled={isImporting}
               >
@@ -459,6 +475,7 @@ function App() {
               <button
                 type="button"
                 className="trace-chip"
+                data-testid="import-cancel-button"
                 onClick={() => setIsImportOpen(false)}
               >
                 Cancel
