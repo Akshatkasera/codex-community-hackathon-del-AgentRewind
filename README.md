@@ -31,8 +31,6 @@ Use the narrated MP4 link underneath to hear the voiceover.
 
 [Download the full demo video](docs/media/agentrewind-demo.mp4)
 
-[Download the narration-only audio](docs/media/agentrewind-demo-narration.mp3)
-
 ## What AgentRewind Is
 
 Most agent tooling today is still built around logs, traces, and final-output evals. That helps you see that something went wrong, but not why the system failed, where the failure started, how it propagated through other agents, or whether a proposed fix would actually work downstream.
