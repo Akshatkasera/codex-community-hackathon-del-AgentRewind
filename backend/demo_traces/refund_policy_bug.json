@@ -1,0 +1,92 @@
+{
+  "trace_id": "refund_policy_bug",
+  "title": "Refund Policy Bug",
+  "task_description": "Customer asks about refund policy after buying a laptop sleeve 45 days ago.",
+  "expected_output": "The current refund window is 30 days from purchase with proof of payment, so a 45-day-old order is no longer eligible.",
+  "final_output": "The customer is still eligible because the refund policy allows returns within 90 days of purchase.",
+  "failure_summary": "The retriever used an outdated FAQ and the rest of the system treated it as canonical.",
+  "tags": [
+    "stale_data",
+    "support",
+    "demo"
+  ],
+  "metadata": {
+    "root_cause_step_id": "s2",
+    "blame_agent": "KnowledgeRetriever",
+    "failure_category": "stale_data",
+    "fix_target": "tool_args",
+    "confidence": 96,
+    "diagnosis_explanation": "Step s2 pulled a 2023 FAQ snapshot that still said 90 days, even though the 2024 handbook superseded it with a 30-day policy. Every downstream agent trusted that stale number and never checked the effective date.",
+    "suggested_fix": "Update the retrieval step so it queries the canonical policy handbook first and rejects policy sources older than 180 days.",
+    "corrected_step_input": "Search the canonical 2024 policy handbook first. Ignore FAQ pages older than 180 days and verify the effective date before returning the refund window."
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "agent_name": "Router",
+      "step_type": "llm",
+      "status": "ok",
+      "input_prompt": "Route the customer question to the right specialists and note any policy lookup needed.",
+      "output_response": "This is a support-policy question. Send it to KnowledgeRetriever, then PolicyChecker, then ResponseWriter.",
+      "timestamp": 1713508800.0,
+      "cost_usd": 0.0018,
+      "tokens": 123,
+      "duration_seconds": 0.9,
+      "metadata": {
+        "lane": "support"
+      }
+    },
+    {
+      "id": "s2",
+      "agent_name": "KnowledgeRetriever",
+      "step_type": "tool",
+      "status": "warning",
+      "tool_name": "search_policy_docs",
+      "tool_args": {
+        "query": "refund policy faq returns",
+        "sources": [
+          "faq_archive",
+          "policy_handbook",
+          "help_center"
+        ]
+      },
+      "tool_result": "faq_2023_refunds.md -> 'Customers may request a refund within 90 days of purchase.'",
+      "input_prompt": "Find the refund policy and summarize the allowed refund window.",
+      "output_response": "Found a FAQ entry stating refunds are allowed within 90 days of purchase. No conflicting source was surfaced.",
+      "timestamp": 1713508801.5,
+      "cost_usd": 0.0027,
+      "tokens": 198,
+      "duration_seconds": 1.4,
+      "metadata": {
+        "source_age_days": 410,
+        "canonical_source_missed": "policy_handbook_2024.md"
+      }
+    },
+    {
+      "id": "s3",
+      "agent_name": "PolicyChecker",
+      "step_type": "analysis",
+      "status": "ok",
+      "input_prompt": "Validate the refund window and identify any conditions that apply.",
+      "output_response": "The retrieved policy says 90 days, so the customer remains within the eligible window. Condition: proof of purchase required.",
+      "timestamp": 1713508803.0,
+      "cost_usd": 0.0021,
+      "tokens": 156,
+      "duration_seconds": 1.1,
+      "metadata": {}
+    },
+    {
+      "id": "s4",
+      "agent_name": "ResponseWriter",
+      "step_type": "llm",
+      "status": "ok",
+      "input_prompt": "Draft the final support answer for the customer.",
+      "output_response": "You are still eligible for a refund because our policy allows returns within 90 days of purchase, as long as you have proof of payment.",
+      "timestamp": 1713508804.3,
+      "cost_usd": 0.0025,
+      "tokens": 176,
+      "duration_seconds": 1.0,
+      "metadata": {}
+    }
+  ]
+}

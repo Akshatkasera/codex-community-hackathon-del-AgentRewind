@@ -1,0 +1,81 @@
+{
+  "trace_id": "research_contradiction",
+  "title": "Research Contradiction",
+  "task_description": "Research the safety profile of Drug X for a quick internal briefing.",
+  "expected_output": "Present a balanced summary that prioritizes peer-reviewed safety data, explicitly calls out contradictions in the evidence, and avoids making an unconditional safety claim.",
+  "final_output": "Drug X appears safe and well tolerated, with strong positive sentiment across the web and no major concerns worth highlighting.",
+  "failure_summary": "Positive marketing content and negative trial evidence conflicted, but the synthesis agent flattened the disagreement into a misleadingly optimistic conclusion.",
+  "tags": [
+    "consensus_hallucination",
+    "research",
+    "demo"
+  ],
+  "metadata": {
+    "root_cause_step_id": "s3",
+    "blame_agent": "Synthesizer",
+    "failure_category": "consensus_hallucination",
+    "fix_target": "handoff",
+    "confidence": 90,
+    "diagnosis_explanation": "The upstream search agents produced contradictory evidence, but the Synthesizer treated the sources as if they agreed and wrote only the positive narrative. That turned a clear evidence conflict into a false consensus.",
+    "suggested_fix": "Force the synthesis step to compare source quality explicitly and require any contradiction between marketing content and trial data to be surfaced in the final answer.",
+    "corrected_step_input": "Synthesize the research by ranking source quality first. If marketing claims conflict with peer-reviewed trials, say so directly and favor the trial data."
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "agent_name": "WebSearcher",
+      "step_type": "tool",
+      "status": "ok",
+      "tool_name": "web_search",
+      "tool_args": {
+        "query": "Drug X safety profile patient experience",
+        "top_k": 5
+      },
+      "tool_result": "Top results are the manufacturer's site, two clinic blogs, and a sponsored patient story page. They all emphasize tolerability.",
+      "input_prompt": "Search the web for accessible summaries of Drug X safety and note overall sentiment.",
+      "output_response": "General web results are strongly positive and emphasize that Drug X is safe, easy to tolerate, and well liked by patients.",
+      "timestamp": 1713516000.0,
+      "cost_usd": 0.0029,
+      "tokens": 210,
+      "duration_seconds": 1.6,
+      "metadata": {
+        "source_quality": "low"
+      }
+    },
+    {
+      "id": "s2",
+      "agent_name": "AcademicSearcher",
+      "step_type": "tool",
+      "status": "warning",
+      "tool_name": "scholar_search",
+      "tool_args": {
+        "query": "Drug X randomized trial safety hepatotoxicity"
+      },
+      "tool_result": "Three peer-reviewed trials report elevated liver enzymes and one halted cohort due to hepatotoxicity concerns.",
+      "input_prompt": "Search academic sources for peer-reviewed safety findings about Drug X.",
+      "output_response": "Academic evidence is mixed to negative. Several trials report elevated liver risk and recommend close monitoring.",
+      "timestamp": 1713516002.1,
+      "cost_usd": 0.0031,
+      "tokens": 226,
+      "duration_seconds": 1.7,
+      "metadata": {
+        "source_quality": "high"
+      }
+    },
+    {
+      "id": "s3",
+      "agent_name": "Synthesizer",
+      "step_type": "llm",
+      "status": "error",
+      "input_prompt": "Combine the web and academic findings into a concise safety summary for internal stakeholders.",
+      "output_response": "Drug X appears safe and well tolerated overall, with strong positive sentiment across the web. Academic results are broadly consistent with this favorable profile.",
+      "timestamp": 1713516004.3,
+      "cost_usd": 0.0027,
+      "tokens": 193,
+      "duration_seconds": 1.3,
+      "metadata": {
+        "ignored_contradiction": true
+      }
+    }
+  ]
+}

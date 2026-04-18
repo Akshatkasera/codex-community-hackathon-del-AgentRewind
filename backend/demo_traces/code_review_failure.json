@@ -1,0 +1,83 @@
+{
+  "trace_id": "code_review_failure",
+  "title": "Code Review Failure",
+  "task_description": "Add caching to the user lookup function without breaking production traffic.",
+  "expected_output": "Implement caching using only real APIs in the codebase, with tests that cover cache hit, miss, and lock contention behavior.",
+  "final_output": "The implementation uses redis_client.cache_with_stampede_protection(), tests pass locally against the hallucinated helper, and the reviewer approves code that will crash in production.",
+  "failure_summary": "The coder invented a Redis helper, the tester encoded the fantasy into tests, and the reviewer missed the unsupported API.",
+  "tags": [
+    "hallucination",
+    "codegen",
+    "demo"
+  ],
+  "metadata": {
+    "root_cause_step_id": "s2",
+    "blame_agent": "Coder",
+    "failure_category": "hallucination",
+    "fix_target": "prompt",
+    "confidence": 94,
+    "diagnosis_explanation": "The Coder in step s2 fabricated a Redis method that does not exist anywhere in the repository. Because the Tester and Reviewer both trusted that invention instead of checking the real interface, the hallucination hardened into an apparently valid patch.",
+    "suggested_fix": "Rewrite the coding step so it must verify available Redis client methods before proposing an implementation and explicitly ban invented helper names.",
+    "corrected_step_input": "Before writing code, inspect the repository for the actual Redis client interface. Do not invent helper methods. If stampede protection is needed, compose it from existing lock primitives."
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "agent_name": "Planner",
+      "step_type": "llm",
+      "status": "ok",
+      "input_prompt": "Plan the implementation for adding caching to user lookup.",
+      "output_response": "Plan: update the user lookup function, add cache invalidation notes, write tests, and send to review.",
+      "timestamp": 1713512400.0,
+      "cost_usd": 0.0016,
+      "tokens": 118,
+      "duration_seconds": 0.8,
+      "metadata": {}
+    },
+    {
+      "id": "s2",
+      "agent_name": "Coder",
+      "step_type": "analysis",
+      "status": "warning",
+      "input_prompt": "Implement the caching layer in the user lookup code and optimize for concurrent cache misses.",
+      "output_response": "Implemented redis_client.cache_with_stampede_protection(user_id, ttl=60) around fetch_user_by_id and added a serializer for cached payloads.",
+      "timestamp": 1713512401.2,
+      "cost_usd": 0.0034,
+      "tokens": 244,
+      "duration_seconds": 1.8,
+      "metadata": {
+        "invented_api": "redis_client.cache_with_stampede_protection()"
+      }
+    },
+    {
+      "id": "s3",
+      "agent_name": "Tester",
+      "step_type": "review",
+      "status": "warning",
+      "input_prompt": "Write tests for the caching implementation and confirm the patch is safe.",
+      "output_response": "Added tests that mock redis_client.cache_with_stampede_protection() for cache hit and miss paths. All tests pass.",
+      "timestamp": 1713512403.6,
+      "cost_usd": 0.0028,
+      "tokens": 201,
+      "duration_seconds": 1.5,
+      "metadata": {
+        "validated_hallucination": true
+      }
+    },
+    {
+      "id": "s4",
+      "agent_name": "Reviewer",
+      "step_type": "review",
+      "status": "ok",
+      "input_prompt": "Review the patch, tests, and overall correctness.",
+      "output_response": "Looks good. The cache helper handles stampede protection cleanly and the tests cover the key behaviors.",
+      "timestamp": 1713512405.4,
+      "cost_usd": 0.0022,
+      "tokens": 154,
+      "duration_seconds": 1.0,
+      "metadata": {
+        "missed_contract_check": true
+      }
+    }
+  ]
+}
