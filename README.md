@@ -13,6 +13,13 @@
   FastAPI | React | TypeScript | OpenAI-compatible debugging flow | Import adapters for common agent frameworks
 </p>
 
+<p align="center">
+  <a href="https://vercel.com/new/clone?repository-url=https://github.com/Akshatkasera/codex-community-hackathon-del-AgentRewind&project-name=agentrewind&repository-name=codex-community-hackathon-del-AgentRewind&demo-title=AgentRewind&demo-description=Debug%20failed%20multi-agent%20AI%20runs%20with%20diagnosis%2C%20replay%2C%20and%20evals&env=OPENAI_API_KEY&envDescription=OpenAI%20API%20key%20used%20for%20diagnosis%2C%20replay%2C%20and%20TTS">
+    <img src="agentrewindlogo.png" alt="AgentRewind logo" width="84" /><br />
+    Deploy AgentRewind to Vercel
+  </a>
+</p>
+
 ## Demo Video
 
 GitHub renders animated images reliably in READMEs, so the preview below plays inline and opens the full MP4 when clicked.
@@ -135,7 +142,7 @@ What happens next:
 
 1. AgentRewind prints its startup banner in the terminal.
 2. It asks for your OpenAI API key.
-3. It stores that key in `backend/.env`.
+3. It stores that key in `backend/.env` (which is gitignored).
 4. It installs backend dependencies if needed.
 5. It builds the frontend if the UI changed.
 6. It starts one FastAPI server that serves both the API and the web app.
@@ -150,6 +157,32 @@ python start_agentrewind.py
 ```
 
 Use `python start_agentrewind.py --open` if you want it to open the browser automatically after startup.
+
+## Deploy On Vercel
+
+AgentRewind now includes a Vercel-ready setup:
+
+- `api/index.py` exposes the FastAPI backend as a Vercel Python function.
+- `vercel.json` builds the Vite frontend, serves `frontend/dist`, and rewrites `/health` plus `/api/*` to FastAPI.
+- The deployed app expects `OPENAI_API_KEY` to be configured as a Vercel environment variable instead of being hardcoded anywhere in the repo.
+
+### Vercel steps
+
+1. Import this GitHub repo into Vercel or use the deploy link above.
+2. Add `OPENAI_API_KEY` in the Vercel project environment variables.
+3. Deploy the project.
+
+### Local verification with Vercel CLI
+
+```powershell
+npm install -g vercel
+vercel link
+vercel env add OPENAI_API_KEY production
+vercel env add OPENAI_API_KEY preview
+vercel --prod
+```
+
+For serverless deployments, the UI sends the current trace and replay branch inline on diagnose, replay, and eval requests so imported runs still work without relying on long-lived worker state.
 
 ## Manual Development Setup
 

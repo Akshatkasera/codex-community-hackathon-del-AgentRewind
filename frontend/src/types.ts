@@ -22,6 +22,8 @@ export type ProvenanceKind =
   | 'direct_handoff'
   | 'inferred'
 export type UncertaintyLevel = 'low' | 'medium' | 'high' | 'critical'
+export type AsyncJobKind = 'diagnosis' | 'replay' | 'eval'
+export type AsyncJobStatus = 'queued' | 'running' | 'completed' | 'failed'
 
 export interface ToolSnapshot {
   snapshot_id: string
@@ -242,10 +244,27 @@ export interface HealthResponse {
   primary_model: string
   replay_model: string
   cluster_count?: number
+  auth_required: boolean
+  storage_backend: string
+  async_jobs: boolean
+  rate_limit_requests_per_minute: number
+  rate_limit_heavy_requests_per_minute: number
 }
 
 export interface ImportedTraceResult {
   framework_detected: ImportFramework
   adapter_notes: string[]
   trace: AgentTrace
+}
+
+export interface AsyncJob<T = unknown> {
+  job_id: string
+  kind: AsyncJobKind
+  status: AsyncJobStatus
+  trace_id?: string | null
+  created_at: number
+  updated_at: number
+  request_id?: string | null
+  result?: T | null
+  error?: string | null
 }

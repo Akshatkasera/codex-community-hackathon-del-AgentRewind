@@ -28,6 +28,8 @@ ImportFramework = Literal[
     "openai_agents",
     "generic",
 ]
+AsyncJobKind = Literal["diagnosis", "replay", "eval"]
+AsyncJobStatus = Literal["queued", "running", "completed", "failed"]
 
 
 class ToolSnapshot(BaseModel):
@@ -246,33 +248,49 @@ class GeneratedEval(BaseModel):
 
 
 class DiagnosisRequest(BaseModel):
-    trace_id: str
-    suspected_step_id: str | None = None
-    model: str | None = None
+    trace_id: str = Field(min_length=1, max_length=120)
+    suspected_step_id: str | None = Field(default=None, max_length=120)
+    model: str | None = Field(default=None, max_length=120)
+    trace: AgentTrace | None = None
 
 
 class ReplayRequest(BaseModel):
-    trace_id: str
-    fork_step_id: str
-    user_modification: str
-    model: str | None = None
+    trace_id: str = Field(min_length=1, max_length=120)
+    fork_step_id: str = Field(min_length=1, max_length=120)
+    user_modification: str = Field(min_length=1, max_length=12_000)
+    model: str | None = Field(default=None, max_length=120)
+    trace: AgentTrace | None = None
 
 
 class EvalRequest(BaseModel):
-    trace_id: str
-    fork_id: str
+    trace_id: str = Field(min_length=1, max_length=120)
+    fork_id: str = Field(min_length=1, max_length=120)
     diagnosis: Diagnosis | None = None
+    trace: AgentTrace | None = None
+    fork: Fork | None = None
 
 
 class ImportTraceRequest(BaseModel):
     framework_hint: ImportFramework = "auto"
     payload: Any
-    source_name: str | None = None
-    title_override: str | None = None
-    task_description_override: str | None = None
+    source_name: str | None = Field(default=None, max_length=260)
+    title_override: str | None = Field(default=None, max_length=200)
+    task_description_override: str | None = Field(default=None, max_length=2_000)
 
 
 class ImportedTraceResult(BaseModel):
     framework_detected: ImportFramework
     adapter_notes: list[str] = Field(default_factory=list)
     trace: AgentTrace
+
+
+class AsyncJobRecord(BaseModel):
+    job_id: str
+    kind: AsyncJobKind
+    status: AsyncJobStatus
+    trace_id: str | None = None
+    created_at: float
+    updated_at: float
+    request_id: str | None = None
+    result: Any | None = None
+    error: str | None = None

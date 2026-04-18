@@ -82,7 +82,7 @@
 
 .status-rail {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
   min-width: 360px;
 }
@@ -133,7 +133,8 @@
   line-height: 1.5;
 }
 
-.status-select {
+.status-select,
+.status-input {
   width: 100%;
   border: 1px solid rgba(115, 138, 171, 0.18);
   border-radius: 12px;
@@ -143,9 +144,15 @@
   font: inherit;
 }
 
-.status-select:disabled {
+.status-select:disabled,
+.status-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.status-apply-button {
+  margin: 0;
+  width: fit-content;
 }
 
 .error-banner {

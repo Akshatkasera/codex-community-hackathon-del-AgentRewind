@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useState, useTransition, type ChangeEvent } from 'react'
+import { useDeferredValue, useEffect, useRef, useState, useTransition, type ChangeEvent } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import './App.css'
 import {
@@ -9,7 +9,9 @@ import {
   fetchTraces,
   generateEval,
   importTrace,
+  readStoredApiToken,
   replayTrace,
+  writeStoredApiToken,
 } from './api'
 import { ComparePanel } from './components/ComparePanel'
 import { StepInspector } from './components/StepInspector'
@@ -39,12 +41,18 @@ const importFrameworkOptions: Array<{
   { value: 'generic', label: 'Generic JSON', description: 'Fallback for custom step or event lists.' },
 ]
 
+const MAX_IMPORT_BYTES = 2_000_000
+const LONG_REQUEST_TIMEOUT_MS = 60_000
+
 function App() {
   const [traceSummaries, setTraceSummaries] = useState<TraceSummary[]>([])
   const [clusters, setClusters] = useState<FailureCluster[]>([])
   const [health, setHealth] = useState<HealthResponse | null>(null)
+  const [appliedApiToken, setAppliedApiToken] = useState(() => readStoredApiToken())
+  const [tokenDraft, setTokenDraft] = useState(() => readStoredApiToken())
   const [analysisModel, setAnalysisModel] = useState('')
   const [retryModel, setRetryModel] = useState('')
+  const [clientTraceCache, setClientTraceCache] = useState<Record<string, AgentTrace>>({})
   const [activeTraceId, setActiveTraceId] = useState<string | null>(null)
   const [trace, setTrace] = useState<AgentTrace | null>(null)
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
@@ -66,6 +74,8 @@ function App() {
   const [isGeneratingEval, setIsGeneratingEval] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const deferredSelectedStepId = useDeferredValue(selectedStepId)
+  const traceRequestRef = useRef(0)
+  const diagnosisRequestRef = useRef(0)
 
   const selectedStep = resolveSelectedStep(trace, fork, deferredSelectedStepId)
   const modelOptions = health?.available_models?.length
@@ -75,32 +85,80 @@ function App() {
       )
 
   useEffect(() => {
+    writeStoredApiToken(appliedApiToken)
+  }, [appliedApiToken])
+
+  useEffect(() => {
+    const controller = new AbortController()
+
     async function bootstrap() {
       try {
-        const [traceList, clusterList, apiHealth] = await Promise.all([
-          fetchTraces(),
-          fetchClusters(),
-          fetchHealth(),
+        const apiHealth = await fetchHealth({ signal: controller.signal })
+        if (controller.signal.aborted) {
+          return
+        }
+        startTraceTransition(() => {
+          setHealth(apiHealth)
+          setAnalysisModel(apiHealth.primary_model)
+          setRetryModel(apiHealth.replay_model)
+        })
+        if (apiHealth.auth_required && !appliedApiToken.trim()) {
+          startTraceTransition(() => {
+            setTraceSummaries([])
+            setClusters([])
+            setClientTraceCache({})
+            setActiveTraceId(null)
+            setTrace(null)
+            setSelectedStepId(null)
+            setDiagnosis(null)
+            setFork(null)
+            setGeneratedEval(null)
+          })
+          setError('This deployment requires an API token. Enter it to load protected runs.')
+          return
+        }
+        const [traceList, clusterList] = await Promise.all([
+          fetchTraces({ signal: controller.signal }),
+          fetchClusters({ signal: controller.signal }),
         ])
         startTraceTransition(() => {
           setTraceSummaries(traceList)
           setClusters(clusterList)
-          setHealth(apiHealth)
-          setAnalysisModel(apiHealth.primary_model)
-          setRetryModel(apiHealth.replay_model)
           setActiveTraceId(traceList[0]?.trace_id ?? null)
         })
+        setError(null)
       } catch (bootstrapError) {
+        if (isRequestCancellation(bootstrapError)) {
+          return
+        }
         setError(getErrorMessage(bootstrapError))
       }
     }
 
     bootstrap()
-  }, [])
+
+    return () => controller.abort()
+  }, [appliedApiToken])
 
   useEffect(() => {
     if (!activeTraceId) {
       return
+    }
+    const requestId = ++traceRequestRef.current
+    const controller = new AbortController()
+    const cachedTrace = clientTraceCache[activeTraceId]
+
+    if (cachedTrace) {
+      startTraceTransition(() => {
+        setTrace(cachedTrace)
+        setSelectedStepId(cachedTrace.steps[0]?.id ?? null)
+        setDraftInput(
+          readMetadataString(cachedTrace.metadata.corrected_step_input) ??
+            cachedTrace.steps[0]?.input_prompt ??
+            '',
+        )
+      })
+      return () => controller.abort()
     }
 
     async function loadTrace(traceId: string) {
@@ -109,37 +167,53 @@ function App() {
         setDiagnosis(null)
         setFork(null)
         setGeneratedEval(null)
-        const loadedTrace = await fetchTrace(traceId)
+        const loadedTrace = await fetchTrace(traceId, { signal: controller.signal })
+        if (controller.signal.aborted || requestId !== traceRequestRef.current) {
+          return
+        }
         startTraceTransition(() => {
           setTrace(loadedTrace)
           setSelectedStepId(loadedTrace.steps[0]?.id ?? null)
           setDraftInput(
             readMetadataString(loadedTrace.metadata.corrected_step_input) ??
               loadedTrace.steps[0]?.input_prompt ??
-              '',
+            '',
           )
         })
       } catch (traceError) {
+        if (isRequestCancellation(traceError)) {
+          return
+        }
         setError(getErrorMessage(traceError))
       }
     }
 
     loadTrace(activeTraceId)
-  }, [activeTraceId])
+
+    return () => controller.abort()
+  }, [activeTraceId, clientTraceCache])
 
   useEffect(() => {
     if (!trace) {
       return
     }
+    const requestId = ++diagnosisRequestRef.current
+    const controller = new AbortController()
 
     async function runDiagnosis(targetTrace: AgentTrace) {
       try {
         setIsDiagnosing(true)
         const result = await diagnoseTrace(
-          targetTrace.trace_id,
-          undefined,
-          analysisModel || health?.primary_model,
+          {
+            traceId: targetTrace.trace_id,
+            model: analysisModel || health?.primary_model,
+            trace: targetTrace,
+          },
+          { signal: controller.signal, timeoutMs: LONG_REQUEST_TIMEOUT_MS },
         )
+        if (controller.signal.aborted || requestId !== diagnosisRequestRef.current) {
+          return
+        }
         setDiagnosis(result)
         setSelectedStepId(result.root_cause_step_id)
         const rootCauseStep = targetTrace.steps.find(
@@ -151,13 +225,20 @@ function App() {
             '',
         )
       } catch (diagnosisError) {
+        if (isRequestCancellation(diagnosisError)) {
+          return
+        }
         setError(getErrorMessage(diagnosisError))
       } finally {
-        setIsDiagnosing(false)
+        if (!controller.signal.aborted && requestId === diagnosisRequestRef.current) {
+          setIsDiagnosing(false)
+        }
       }
     }
 
     runDiagnosis(trace)
+
+    return () => controller.abort()
   }, [trace, analysisModel, health?.primary_model])
 
   async function handleReplay() {
@@ -169,10 +250,14 @@ function App() {
       setError(null)
       setIsReplaying(true)
       const result = await replayTrace(
-        trace.trace_id,
-        selectedStepId,
-        draftInput,
-        retryModel || health?.replay_model,
+        {
+          traceId: trace.trace_id,
+          forkStepId: selectedStepId,
+          userModification: draftInput,
+          model: retryModel || health?.replay_model,
+          trace,
+        },
+        { timeoutMs: LONG_REQUEST_TIMEOUT_MS },
       )
       setFork(result)
       setGeneratedEval(null)
@@ -192,7 +277,18 @@ function App() {
     try {
       setError(null)
       setIsGeneratingEval(true)
-      const result = await generateEval(trace.trace_id, fork.fork_id, diagnosis)
+      const result = await generateEval(
+        {
+          traceId: trace.trace_id,
+          forkId: fork.fork_id,
+          diagnosis,
+          trace,
+          fork,
+        },
+        {
+          timeoutMs: LONG_REQUEST_TIMEOUT_MS,
+        },
+      )
       setGeneratedEval(result)
     } catch (evalError) {
       setError(getErrorMessage(evalError))
@@ -204,6 +300,10 @@ function App() {
   async function handleImport() {
     if (!importPayload.trim()) {
       setError('Paste or load JSON run data before importing.')
+      return
+    }
+    if (new Blob([importPayload]).size > MAX_IMPORT_BYTES) {
+      setError('Import payload is too large. Keep the JSON under 2 MB.')
       return
     }
 
@@ -225,16 +325,17 @@ function App() {
         sourceName: importSourceName || null,
         titleOverride: importTitleOverride || null,
         taskDescriptionOverride: importTaskDescriptionOverride || null,
+        timeoutMs: LONG_REQUEST_TIMEOUT_MS,
       })
-      const [traceList, clusterList, apiHealth] = await Promise.all([
-        fetchTraces(),
-        fetchClusters(),
-        fetchHealth(),
-      ])
+      const importedSummary = summarizeTrace(result.trace)
+      setClientTraceCache((currentCache) => ({
+        ...currentCache,
+        [result.trace.trace_id]: result.trace,
+      }))
       startTraceTransition(() => {
-        setTraceSummaries(traceList)
-        setClusters(clusterList)
-        setHealth(apiHealth)
+        setTraceSummaries((currentSummaries) =>
+          upsertTraceSummary(currentSummaries, importedSummary),
+        )
         setActiveTraceId(result.trace.trace_id)
         setTrace(result.trace)
         setSelectedStepId(result.trace.steps[0]?.id ?? null)
@@ -247,6 +348,8 @@ function App() {
         setFork(null)
         setGeneratedEval(null)
       })
+      void fetchHealth().then(setHealth).catch(() => undefined)
+      void fetchClusters().then(setClusters).catch(() => undefined)
       setImportMessage(
         `Imported ${result.trace.title} from ${formatImportFramework(result.framework_detected)}. ${result.adapter_notes[0] ?? ''}`,
       )
@@ -265,6 +368,11 @@ function App() {
   async function handleImportFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) {
+      return
+    }
+    if (file.size > MAX_IMPORT_BYTES) {
+      setError('The selected file is too large. Keep imported traces under 2 MB.')
+      event.target.value = ''
       return
     }
     try {
@@ -321,7 +429,37 @@ function App() {
           <div className="status-card">
             <span className="status-card-label">Connection</span>
             <strong>{health?.llm_mode === 'openai' ? 'Connected' : 'Demo Mode'}</strong>
+            <span className="status-card-copy">
+              {health ? `${health.storage_backend} state and async background jobs are enabled.` : 'Checking backend status.'}
+            </span>
           </div>
+          {health?.auth_required ? (
+            <div className="status-card status-card-model">
+              <span className="status-card-label">Access</span>
+              <strong>Bearer token required</strong>
+              <span className="status-card-copy">
+                Enter the deployment token to load traces and run protected API actions.
+              </span>
+              <input
+                className="status-input"
+                type="password"
+                value={tokenDraft}
+                onChange={(event) => setTokenDraft(event.target.value)}
+                placeholder="Paste API token"
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                className="trace-chip status-apply-button"
+                onClick={() => {
+                  setAppliedApiToken(tokenDraft)
+                  setError(null)
+                }}
+              >
+                Use token
+              </button>
+            </div>
+          ) : null}
           <div className="status-card status-card-model">
             <span className="status-card-label">Analysis</span>
             <strong>Choose GPT model</strong>
@@ -523,7 +661,13 @@ function App() {
       <footer className="footer-note">
         <span>{isTraceLoading ? 'Loading run...' : `${traceSummaries.length} sample runs loaded`}</span>
         <span>{health?.cluster_count ?? clusters.length} issue patterns indexed</span>
-        <span>{isDiagnosing ? 'Checking the run...' : 'Analysis ready'}</span>
+        <span>
+          {health?.auth_required
+            ? `Protected API • ${health.rate_limit_heavy_requests_per_minute}/min heavy requests`
+            : isDiagnosing
+              ? 'Checking the run...'
+              : 'Analysis ready'}
+        </span>
       </footer>
     </div>
   )
@@ -551,12 +695,36 @@ function getErrorMessage(error: unknown) {
   return 'Something failed while talking to the backend.'
 }
 
+function isRequestCancellation(error: unknown) {
+  return error instanceof Error && error.message === 'Request was cancelled.'
+}
+
 function readMetadataString(value: unknown) {
   return typeof value === 'string' ? value : null
 }
 
 function formatImportFramework(framework: ImportFramework) {
   return importFrameworkOptions.find((option) => option.value === framework)?.label ?? 'Imported data'
+}
+
+function summarizeTrace(trace: AgentTrace): TraceSummary {
+  return {
+    trace_id: trace.trace_id,
+    title: trace.title,
+    task_description: trace.task_description,
+    failure_summary: trace.failure_summary ?? null,
+    tags: trace.tags,
+  }
+}
+
+function upsertTraceSummary(
+  currentSummaries: TraceSummary[],
+  nextSummary: TraceSummary,
+) {
+  const remainingSummaries = currentSummaries.filter(
+    (summary) => summary.trace_id !== nextSummary.trace_id,
+  )
+  return [nextSummary, ...remainingSummaries]
 }
 
 export default App

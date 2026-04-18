@@ -186,24 +186,12 @@ def ensure_backend_env_file() -> None:
         write_text(BACKEND_ENV_FILE, "")
 
 
-def extract_prompt_key(prompt_path: Path) -> str | None:
-    if not prompt_path.exists():
-        return None
-    match = re.search(r"(sk-[A-Za-z0-9_\-]+)", read_text(prompt_path))
-    return match.group(1) if match else None
-
-
 def prompt_for_api_key() -> str | None:
     ensure_backend_env_file()
     saved_key = read_env_value(BACKEND_ENV_FILE, "OPENAI_API_KEY")
-    prompt_path_value = read_env_value(
-        BACKEND_ENV_FILE, "AGENTREWIND_PROMPT_PATH"
-    ) or r"C:\Users\aksha\Downloads\prompt.md"
-    prompt_key = extract_prompt_key(Path(prompt_path_value))
-    fallback_available = saved_key or prompt_key
     prompt_label = (
         "OpenAI API key (press Enter to use the saved key): "
-        if fallback_available
+        if saved_key
         else "OpenAI API key (leave blank to start in demo mode): "
     )
     entered_key = getpass.getpass(prompt_label).strip()
@@ -216,10 +204,6 @@ def prompt_for_api_key() -> str | None:
     if saved_key:
         upsert_env_value(BACKEND_ENV_FILE, "AGENTREWIND_USE_MOCK_LLM", "false")
         return saved_key
-
-    if prompt_key:
-        upsert_env_value(BACKEND_ENV_FILE, "AGENTREWIND_USE_MOCK_LLM", "false")
-        return prompt_key
 
     upsert_env_value(BACKEND_ENV_FILE, "AGENTREWIND_USE_MOCK_LLM", "true")
     return None

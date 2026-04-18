@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from .config import get_settings
 from .models import AgentTrace, ImportFramework, ImportedTraceResult, TraceStep
 from .utils import count_tokens, generate_uuid
 
@@ -63,7 +64,14 @@ def import_trace_payload(
         title_override=title_override,
         task_description_override=task_description_override,
     )
-    notes = list(dict.fromkeys(outcome.notes + [f"Imported via {framework} adapter."]))
+    trace, sanitization_notes = _sanitize_trace(trace)
+    notes = list(
+        dict.fromkeys(
+            outcome.notes
+            + sanitization_notes
+            + [f"Imported via {framework} adapter."]
+        )
+    )
     return ImportedTraceResult(
         framework_detected=framework,
         adapter_notes=notes,
@@ -200,6 +208,11 @@ def _coerce_payload(payload: Any) -> Any:
         text = payload.strip()
         if not text:
             raise ValueError("Import payload is empty.")
+        max_payload_bytes = get_settings().import_max_payload_bytes
+        if len(text.encode("utf-8")) > max_payload_bytes:
+            raise ValueError(
+                f"Import payload exceeds the {max_payload_bytes:,}-byte limit."
+            )
         return json.loads(text)
     return payload
 
@@ -781,7 +794,7 @@ def _finalize_trace(
     if source_name:
         metadata["import_source_name"] = source_name
     tags = list(dict.fromkeys([*trace.tags, "imported", framework]))
-    steps = [
+    normalized_steps = [
         step.model_copy(
             update={
                 "id": step.id or f"s{index}",
@@ -790,6 +803,7 @@ def _finalize_trace(
         )
         for index, step in enumerate(trace.steps, start=1)
     ]
+    steps = _ensure_unique_step_ids(normalized_steps)
     return trace.model_copy(
         update={
             "trace_id": sanitized_trace_id,
@@ -803,6 +817,218 @@ def _finalize_trace(
             "analysis": None,
         }
     )
+
+
+def _ensure_unique_step_ids(steps: list[TraceStep]) -> list[TraceStep]:
+    seen: dict[str, int] = {}
+    unique_steps: list[TraceStep] = []
+    for index, step in enumerate(steps, start=1):
+        base_id = _safe_slug(step.id) or f"s{index}"
+        count = seen.get(base_id, 0)
+        seen[base_id] = count + 1
+        unique_id = base_id if count == 0 else f"{base_id}_{count + 1}"
+        unique_steps.append(step.model_copy(update={"id": unique_id}))
+    return unique_steps
+
+
+def _sanitize_trace(trace: AgentTrace) -> tuple[AgentTrace, list[str]]:
+    settings = get_settings()
+    notes: list[str] = []
+    steps = list(trace.steps)
+    if len(steps) > settings.import_max_steps:
+        kept_steps = steps[: max(1, settings.import_max_steps - 1)]
+        if steps[-1] not in kept_steps:
+            kept_steps.append(steps[-1])
+        notes.append(
+            f"Trimmed imported trace from {len(steps)} to {len(kept_steps)} steps for stability."
+        )
+        steps = kept_steps
+
+    sanitized_steps = [
+        _sanitize_step(
+            step,
+            text_limit=settings.import_max_text_chars,
+            list_limit=settings.import_max_list_entries,
+        )
+        for step in steps
+    ]
+    sanitized_trace = trace.model_copy(
+        update={
+            "title": _trim_text(trace.title, settings.import_max_text_chars),
+            "task_description": _trim_text(
+                trace.task_description, settings.import_max_text_chars
+            ),
+            "expected_output": (
+                _trim_text(trace.expected_output, settings.import_max_text_chars)
+                if trace.expected_output
+                else None
+            ),
+            "final_output": _trim_text(trace.final_output, settings.import_max_text_chars),
+            "failure_summary": (
+                _trim_text(trace.failure_summary, settings.import_max_text_chars)
+                if trace.failure_summary
+                else None
+            ),
+            "tags": [
+                _trim_text(tag, 80)
+                for tag in list(dict.fromkeys(trace.tags))[: settings.import_max_list_entries]
+            ],
+            "metadata": _sanitize_value(
+                trace.metadata,
+                max_chars=settings.import_max_text_chars,
+                max_entries=settings.import_max_list_entries,
+            ),
+            "steps": sanitized_steps,
+        }
+    )
+    return sanitized_trace, notes
+
+
+def _sanitize_step(step: TraceStep, *, text_limit: int, list_limit: int) -> TraceStep:
+    tool_snapshot = None
+    if step.tool_snapshot is not None:
+        tool_snapshot = step.tool_snapshot.model_copy(
+            update={
+                "tool_name": _trim_text(step.tool_snapshot.tool_name, 200),
+                "normalized_args": _sanitize_value(
+                    step.tool_snapshot.normalized_args,
+                    max_chars=text_limit,
+                    max_entries=list_limit,
+                ),
+                "result": _sanitize_value(
+                    step.tool_snapshot.result,
+                    max_chars=text_limit,
+                    max_entries=list_limit,
+                ),
+                "result_digest": _trim_text(step.tool_snapshot.result_digest, 120),
+                "invalidation_reason": (
+                    _trim_text(step.tool_snapshot.invalidation_reason, 200)
+                    if step.tool_snapshot.invalidation_reason
+                    else None
+                ),
+            }
+        )
+
+    environment_snapshot = None
+    if step.environment_snapshot is not None:
+        environment_snapshot = step.environment_snapshot.model_copy(
+            update={
+                "model_name": (
+                    _trim_text(step.environment_snapshot.model_name, 120)
+                    if step.environment_snapshot.model_name
+                    else None
+                ),
+                "prompt_version": (
+                    _trim_text(step.environment_snapshot.prompt_version, 120)
+                    if step.environment_snapshot.prompt_version
+                    else None
+                ),
+                "tool_versions": step.environment_snapshot.tool_versions[:list_limit],
+                "memory_digest": (
+                    _trim_text(step.environment_snapshot.memory_digest, 120)
+                    if step.environment_snapshot.memory_digest
+                    else None
+                ),
+                "config_flags": _sanitize_value(
+                    step.environment_snapshot.config_flags,
+                    max_chars=text_limit // 2,
+                    max_entries=list_limit,
+                ),
+                "auth_scope": (
+                    _trim_text(step.environment_snapshot.auth_scope, 120)
+                    if step.environment_snapshot.auth_scope
+                    else None
+                ),
+                "clock_version": (
+                    _trim_text(step.environment_snapshot.clock_version, 120)
+                    if step.environment_snapshot.clock_version
+                    else None
+                ),
+            }
+        )
+
+    return step.model_copy(
+        update={
+            "agent_name": _trim_text(step.agent_name, 200),
+            "tool_name": _trim_text(step.tool_name, 200) if step.tool_name else None,
+            "tool_args": _sanitize_value(
+                step.tool_args,
+                max_chars=text_limit,
+                max_entries=list_limit,
+            ),
+            "tool_result": _sanitize_value(
+                step.tool_result,
+                max_chars=text_limit,
+                max_entries=list_limit,
+            ),
+            "input_prompt": _trim_text(step.input_prompt, text_limit),
+            "output_response": _trim_text(step.output_response, text_limit),
+            "claims": _sanitize_string_list(step.claims, item_limit=list_limit),
+            "memory_reads": _sanitize_string_list(
+                step.memory_reads,
+                item_limit=list_limit,
+            ),
+            "memory_writes": _sanitize_string_list(
+                step.memory_writes,
+                item_limit=list_limit,
+            ),
+            "tool_snapshot": tool_snapshot,
+            "environment_snapshot": environment_snapshot,
+            "metadata": _sanitize_value(
+                step.metadata,
+                max_chars=text_limit // 2,
+                max_entries=list_limit,
+            ),
+        }
+    )
+
+
+def _sanitize_string_list(values: list[str], *, item_limit: int) -> list[str]:
+    trimmed = [_trim_text(value, 240) for value in values[:item_limit]]
+    if len(values) > item_limit:
+        trimmed.append(f"...[truncated {len(values) - item_limit} entries]")
+    return trimmed
+
+
+def _sanitize_value(value: Any, *, max_chars: int, max_entries: int) -> Any:
+    if value is None or isinstance(value, (int, float, bool)):
+        return value
+    if isinstance(value, str):
+        return _trim_text(value, max_chars)
+    if isinstance(value, list):
+        sanitized_items = [
+            _sanitize_value(item, max_chars=max_chars, max_entries=max_entries)
+            for item in value[:max_entries]
+        ]
+        if len(value) > max_entries:
+            sanitized_items.append(f"...[truncated {len(value) - max_entries} entries]")
+        return sanitized_items
+    if isinstance(value, dict):
+        sanitized_dict: dict[str, Any] = {}
+        items = list(value.items())[:max_entries]
+        for key, nested_value in items:
+            safe_key = _trim_text(str(key), 80) or "field"
+            sanitized_dict[safe_key] = _sanitize_value(
+                nested_value,
+                max_chars=max_chars,
+                max_entries=max_entries,
+            )
+        if len(value) > max_entries:
+            sanitized_dict["__truncated__"] = (
+                f"{len(value) - max_entries} additional entries omitted"
+            )
+        return sanitized_dict
+    return _trim_text(str(value), max_chars)
+
+
+def _trim_text(value: str | None, max_chars: int) -> str:
+    if not value:
+        return ""
+    if len(value) <= max_chars:
+        return value
+    if max_chars <= 16:
+        return value[:max_chars]
+    return f"{value[: max_chars - 16].rstrip()} ...[truncated]"
 
 
 def _build_step(

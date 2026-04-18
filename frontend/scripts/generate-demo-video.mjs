@@ -108,7 +108,6 @@ function startBackend(port) {
     ...process.env,
     AGENTREWIND_USE_MOCK_LLM: 'true',
     OPENAI_API_KEY: '',
-    AGENTREWIND_PROMPT_PATH: path.join(repoRoot, 'docs', 'demo', 'missing_prompt.md'),
   }
 
   const child = spawn(
@@ -155,16 +154,7 @@ async function resolveApiKey() {
     return envValues.OPENAI_API_KEY
   }
 
-  const promptPath = envValues.AGENTREWIND_PROMPT_PATH || 'C:\\Users\\aksha\\Downloads\\prompt.md'
-  try {
-    const promptContents = await fs.readFile(promptPath, 'utf8')
-    const keyMatch = promptContents.match(/sk-[A-Za-z0-9_-]+/)
-    if (keyMatch) {
-      return keyMatch[0]
-    }
-  } catch {}
-
-  throw new Error('OpenAI API key not found. Set OPENAI_API_KEY or add it to backend/.env before generating narration.')
+  throw new Error('OpenAI API key not found. Set OPENAI_API_KEY in your shell or backend/.env before generating narration.')
 }
 
 async function parseSimpleEnvFile(filePath) {
