@@ -18,7 +18,12 @@
     "confidence": 96,
     "diagnosis_explanation": "Step s2 pulled a 2023 FAQ snapshot that still said 90 days, even though the 2024 handbook superseded it with a 30-day policy. Every downstream agent trusted that stale number and never checked the effective date.",
     "suggested_fix": "Update the retrieval step so it queries the canonical policy handbook first and rejects policy sources older than 180 days.",
-    "corrected_step_input": "Search the canonical 2024 policy handbook first. Ignore FAQ pages older than 180 days and verify the effective date before returning the refund window."
+    "corrected_step_input": "Search the canonical 2024 policy handbook first. Ignore FAQ pages older than 180 days and verify the effective date before returning the refund window.",
+    "environment_profile": {
+      "default_model": "gpt-4o-mini",
+      "auth_scope": "support-readonly",
+      "memory_store_version": "policy-memory-v2"
+    }
   },
   "steps": [
     {
@@ -33,7 +38,10 @@
       "tokens": 123,
       "duration_seconds": 0.9,
       "metadata": {
-        "lane": "support"
+        "lane": "support",
+        "model_name": "gpt-4o-mini",
+        "model_version": "gpt-4o-mini-2024-07",
+        "prompt_version": "router-support-v1"
       }
     },
     {
@@ -53,13 +61,23 @@
       "tool_result": "faq_2023_refunds.md -> 'Customers may request a refund within 90 days of purchase.'",
       "input_prompt": "Find the refund policy and summarize the allowed refund window.",
       "output_response": "Found a FAQ entry stating refunds are allowed within 90 days of purchase. No conflicting source was surfaced.",
+      "claims": [
+        "Refunds are allowed within 90 days of purchase.",
+        "No conflicting source was surfaced."
+      ],
+      "memory_writes": [
+        "refund_window=90_days",
+        "policy_source=faq_2023_refunds"
+      ],
       "timestamp": 1713508801.5,
       "cost_usd": 0.0027,
       "tokens": 198,
       "duration_seconds": 1.4,
       "metadata": {
         "source_age_days": 410,
-        "canonical_source_missed": "policy_handbook_2024.md"
+        "canonical_source_missed": "policy_handbook_2024.md",
+        "tool_version": "search-policy-docs-v3",
+        "prompt_version": "knowledge-retriever-v2"
       }
     },
     {
@@ -69,11 +87,22 @@
       "status": "ok",
       "input_prompt": "Validate the refund window and identify any conditions that apply.",
       "output_response": "The retrieved policy says 90 days, so the customer remains within the eligible window. Condition: proof of purchase required.",
+      "memory_reads": [
+        "refund_window=90_days"
+      ],
+      "memory_writes": [
+        "eligibility=eligible",
+        "refund_window=90_days"
+      ],
       "timestamp": 1713508803.0,
       "cost_usd": 0.0021,
       "tokens": 156,
       "duration_seconds": 1.1,
-      "metadata": {}
+      "metadata": {
+        "model_name": "gpt-4o-mini",
+        "model_version": "gpt-4o-mini-2024-07",
+        "prompt_version": "policy-checker-v1"
+      }
     },
     {
       "id": "s4",
@@ -82,11 +111,19 @@
       "status": "ok",
       "input_prompt": "Draft the final support answer for the customer.",
       "output_response": "You are still eligible for a refund because our policy allows returns within 90 days of purchase, as long as you have proof of payment.",
+      "memory_reads": [
+        "eligibility=eligible",
+        "refund_window=90_days"
+      ],
       "timestamp": 1713508804.3,
       "cost_usd": 0.0025,
       "tokens": 176,
       "duration_seconds": 1.0,
-      "metadata": {}
+      "metadata": {
+        "model_name": "gpt-4o-mini",
+        "model_version": "gpt-4o-mini-2024-07",
+        "prompt_version": "response-writer-v1"
+      }
     }
   ]
 }

@@ -2,6 +2,18 @@
 
 AgentRewind is a multi-agent debugger for failed LLM workflows. It loads a bad trace, asks OpenAI to identify the root-cause step, lets you rewrite that step, replays the downstream agents from the fork point, and then turns the fix into a reusable regression eval.
 
+It now includes nine deeper debugging capabilities:
+
+- deterministic tool snapshots for replaying captured tool steps without resampling them
+- contradiction detection across agent claims so consensus failures are explicit
+- memory provenance links that show which earlier step introduced a fact carried into the final answer
+- cross-trace failure clustering so recurring failure families are grouped together
+- automatic repair suggestions that propose workflow, prompt, memory, or abstention fixes
+- persistent memory corruption detection for bad facts that keep poisoning later steps
+- uncertainty propagation so weak evidence does not silently become a confident answer
+- versioned environment snapshots and replay audits so forked runs explain what was deterministic versus simulated
+- automatic import adapters for LangGraph, CrewAI, AutoGen, OpenAI Agents, native AgentRewind traces, and generic JSON
+
 ## Stack
 
 - Backend: FastAPI + Pydantic + OpenAI Python SDK
@@ -47,6 +59,19 @@ The frontend expects the API at `http://localhost:8000`.
 5. AgentRewind simulates each downstream step, renders the forked branch in the timeline, and shows the new final answer against the original output.
 6. Click `Generate Regression Eval` to convert the fix into JSON assertions you can reuse as a guardrail.
 
+## Import Adapters
+
+Use `Import External Trace` in the UI to paste or load a JSON export from:
+
+- LangGraph
+- CrewAI
+- AutoGen
+- OpenAI Agents
+- AgentRewind native traces
+- generic step/event/message JSON
+
+The backend will auto-detect the framework when possible, normalize the export into the AgentRewind schema, store it under `backend/imported_traces`, and immediately make it available in the debugger timeline.
+
 ## Architecture
 
 ### Diagnosis engine
@@ -55,11 +80,31 @@ The frontend expects the API at `http://localhost:8000`.
 
 ### Replay engine
 
-`backend/app/replay_engine.py` rewrites the chosen step, then simulates each subsequent agent using the updated upstream context. It judges whether the new output is better than the original answer and reports the cost delta.
+`backend/app/replay_engine.py` rewrites the chosen step, then simulates each subsequent agent using the updated upstream context. If a downstream tool step has a captured snapshot, AgentRewind replays that step deterministically instead of resampling it. The replay report also includes remaining contradictions and provenance links for the forked branch.
 
 ### Eval generator
 
 `backend/app/eval_generator.py` converts the original failure and the successful fork into a regression-test spec with positive and negative assertions.
+
+### Trace analysis
+
+`backend/app/analysis_engine.py` enriches every trace with:
+
+- tool snapshots for deterministic replay
+- contradiction findings between claims made by different agents
+- provenance links showing how facts move from one step into later reasoning
+- repair suggestions derived from the failure pattern
+- persistent memory corruption issues
+- per-step uncertainty signals and abstention recommendations
+- versioned environment snapshots for replay accounting
+
+### Cluster intelligence
+
+`backend/app/cluster_engine.py` groups traces into recurring failure families. In the current demo set that means evidence-integrity failures are clustered separately from interface hallucinations, and the frontend surfaces those clusters so you can reason about repeated failure patterns instead of isolated incidents.
+
+### Import adapters
+
+`backend/app/import_adapters.py` detects common framework exports and converts them into `AgentTrace`. Each adapter preserves as much tool, memory, and version metadata as the source payload exposes, so the rest of the debugger can still run contradiction analysis, memory corruption detection, uncertainty scoring, clustering, and replay auditing on imported traces.
 
 ## Demo Traces
 

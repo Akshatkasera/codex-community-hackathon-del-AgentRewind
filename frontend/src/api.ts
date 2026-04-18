@@ -1,9 +1,12 @@
 import type {
   AgentTrace,
   Diagnosis,
+  FailureCluster,
   Fork,
   GeneratedEval,
   HealthResponse,
+  ImportedTraceResult,
+  ImportFramework,
   TraceSummary,
 } from './types'
 
@@ -38,6 +41,10 @@ export function fetchHealth() {
 
 export function fetchTraces() {
   return request<TraceSummary[]>('/api/traces')
+}
+
+export function fetchClusters() {
+  return request<FailureCluster[]>('/api/clusters')
 }
 
 export function fetchTrace(traceId: string) {
@@ -80,6 +87,25 @@ export function generateEval(
       trace_id: traceId,
       fork_id: forkId,
       diagnosis,
+    }),
+  })
+}
+
+export function importTrace(options: {
+  frameworkHint: ImportFramework
+  payload: unknown
+  sourceName?: string | null
+  titleOverride?: string | null
+  taskDescriptionOverride?: string | null
+}) {
+  return request<ImportedTraceResult>('/api/imports', {
+    method: 'POST',
+    body: JSON.stringify({
+      framework_hint: options.frameworkHint,
+      payload: options.payload,
+      source_name: options.sourceName ?? null,
+      title_override: options.titleOverride ?? null,
+      task_description_override: options.taskDescriptionOverride ?? null,
     }),
   })
 }

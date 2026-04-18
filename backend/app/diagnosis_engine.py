@@ -17,6 +17,8 @@ Common failure modes to consider:
 4. TOOL_ERROR: Tool was called with wrong arguments or returned bad data
 5. PROMPT_AMBIGUITY: Instructions were vague, agent guessed wrong
 6. CONSENSUS_HALLUCINATION: Multiple agents agreed on something fabricated
+7. MEMORY_PROVENANCE: A bad fact entered memory earlier and was repeated downstream
+8. CONTRADICTION_SUPPRESSION: Agents observed conflicting evidence but failed to surface it
 
 Return JSON with this exact schema:
 {
@@ -72,6 +74,10 @@ ACTUAL OUTPUT (WRONG): {trace.final_output}
 
 FULL TRACE:
 {trace_context}
+
+TRACE ANALYSIS SUMMARY: {trace.analysis.summary if trace.analysis else "No precomputed analysis available"}
+PRECOMPUTED REPAIRS: {[suggestion.title for suggestion in trace.analysis.repair_suggestions] if trace.analysis else []}
+ABSTENTION SIGNAL: {trace.analysis.abstention_reason if trace.analysis and trace.analysis.abstention_recommended else "Not required"}
 
 Suspected step id: {suspected_step_id or "Not provided - infer it"}
 

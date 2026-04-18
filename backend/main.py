@@ -8,13 +8,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.diagnosis_engine import diagnose_failure
 from app.eval_generator import generate_eval_from_fork
+from app.import_adapters import import_trace_payload
 from app.models import (
     AgentTrace,
     Diagnosis,
     DiagnosisRequest,
     EvalRequest,
+    FailureCluster,
     Fork,
     GeneratedEval,
+    ImportedTraceResult,
+    ImportTraceRequest,
     ReplayRequest,
     TraceSummary,
 )
@@ -56,6 +60,7 @@ async def health() -> dict[str, object]:
         "llm_mode": "openai" if settings.llm_enabled else "mock",
         "primary_model": settings.primary_model,
         "replay_model": settings.replay_model,
+        "cluster_count": len(repository.list_clusters()),
     }
 
 
@@ -64,12 +69,39 @@ async def list_traces() -> list[TraceSummary]:
     return repository.list_traces()
 
 
+@app.get("/api/clusters", response_model=list[FailureCluster])
+async def list_clusters() -> list[FailureCluster]:
+    return repository.list_clusters()
+
+
 @app.get("/api/traces/{trace_id}", response_model=AgentTrace)
 async def get_trace(trace_id: str) -> AgentTrace:
     trace = repository.get_trace(trace_id)
     if trace is None:
         raise HTTPException(status_code=404, detail="Trace not found.")
     return trace
+
+
+@app.post("/api/imports", response_model=ImportedTraceResult)
+async def import_trace(request: ImportTraceRequest) -> ImportedTraceResult:
+    logger.info("Importing trace with framework_hint=%s", request.framework_hint)
+    try:
+        imported = import_trace_payload(
+            payload=request.payload,
+            framework_hint=request.framework_hint,
+            source_name=request.source_name,
+            title_override=request.title_override,
+            task_description_override=request.task_description_override,
+        )
+    except (ValueError, TypeError) as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    stored_trace = repository.save_imported_trace(imported.trace)
+    return ImportedTraceResult(
+        framework_detected=imported.framework_detected,
+        adapter_notes=imported.adapter_notes,
+        trace=stored_trace,
+    )
 
 
 @app.post("/api/diagnose", response_model=Diagnosis)

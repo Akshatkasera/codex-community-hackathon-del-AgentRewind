@@ -18,7 +18,12 @@
     "confidence": 94,
     "diagnosis_explanation": "The Coder in step s2 fabricated a Redis method that does not exist anywhere in the repository. Because the Tester and Reviewer both trusted that invention instead of checking the real interface, the hallucination hardened into an apparently valid patch.",
     "suggested_fix": "Rewrite the coding step so it must verify available Redis client methods before proposing an implementation and explicitly ban invented helper names.",
-    "corrected_step_input": "Before writing code, inspect the repository for the actual Redis client interface. Do not invent helper methods. If stampede protection is needed, compose it from existing lock primitives."
+    "corrected_step_input": "Before writing code, inspect the repository for the actual Redis client interface. Do not invent helper methods. If stampede protection is needed, compose it from existing lock primitives.",
+    "environment_profile": {
+      "default_model": "gpt-4o-mini",
+      "auth_scope": "repo-readonly",
+      "memory_store_version": "coding-memory-v1"
+    }
   },
   "steps": [
     {
@@ -32,7 +37,11 @@
       "cost_usd": 0.0016,
       "tokens": 118,
       "duration_seconds": 0.8,
-      "metadata": {}
+      "metadata": {
+        "model_name": "gpt-4o-mini",
+        "model_version": "gpt-4o-mini-2024-07",
+        "prompt_version": "planner-coding-v1"
+      }
     },
     {
       "id": "s2",
@@ -46,7 +55,10 @@
       "tokens": 244,
       "duration_seconds": 1.8,
       "metadata": {
-        "invented_api": "redis_client.cache_with_stampede_protection()"
+        "invented_api": "redis_client.cache_with_stampede_protection()",
+        "model_name": "gpt-4o-mini",
+        "model_version": "gpt-4o-mini-2024-07",
+        "prompt_version": "coder-implementation-v2"
       }
     },
     {
@@ -61,7 +73,10 @@
       "tokens": 201,
       "duration_seconds": 1.5,
       "metadata": {
-        "validated_hallucination": true
+        "validated_hallucination": true,
+        "model_name": "gpt-4o-mini",
+        "model_version": "gpt-4o-mini-2024-07",
+        "prompt_version": "tester-cache-v1"
       }
     },
     {
@@ -76,7 +91,10 @@
       "tokens": 154,
       "duration_seconds": 1.0,
       "metadata": {
-        "missed_contract_check": true
+        "missed_contract_check": true,
+        "model_name": "gpt-4o-mini",
+        "model_version": "gpt-4o-mini-2024-07",
+        "prompt_version": "reviewer-v1"
       }
     }
   ]
