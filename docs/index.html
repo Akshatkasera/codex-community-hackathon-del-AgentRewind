@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AgentRewind Demo</title>
+    <meta
+      name="description"
+      content="Watch the AgentRewind demo video, explore screenshots, and understand how AgentRewind debugs broken AI multi-agent runs."
+    />
+    <link rel="icon" type="image/png" href="images/logo.png" />
+    <link rel="stylesheet" href="demo.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <img class="logo" src="images/logo.png" alt="AgentRewind logo" />
+          <p class="eyebrow">AgentRewind Demo</p>
+          <h1>Debug broken AI multi-agent runs.</h1>
+          <p class="lede">
+            Watch the launch film, inspect the product UI, and see how AgentRewind
+            finds the broken step, replays a fix, and compares the outcome.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#watch">Watch the demo</a>
+            <a
+              class="button button-secondary"
+              href="https://github.com/Akshatkasera/codex-community-hackathon-del-AgentRewind"
+            >
+              View the repository
+            </a>
+          </div>
+        </div>
+        <div class="hero-art">
+          <img
+            src="images/agentrewind-readme-hero.png"
+            alt="AgentRewind interface montage"
+          />
+        </div>
+      </section>
+
+      <section class="video-section" id="watch">
+        <div class="section-heading">
+          <p class="eyebrow">Launch Film</p>
+          <h2>Watch the full AgentRewind demo with audio.</h2>
+          <p>
+            This page is the GitHub-native workaround for README video limits. The
+            video below plays directly with controls instead of linking to a raw MP4.
+          </p>
+        </div>
+
+        <div class="video-frame">
+          <video
+            controls
+            preload="metadata"
+            poster="images/screenshot-overview.png"
+            playsinline
+          >
+            <source src="media/agentrewind-demo.mp4" type="video/mp4" />
+            Your browser does not support embedded video. Use the download link
+            below.
+          </video>
+        </div>
+
+        <div class="video-links">
+          <a class="button button-primary" href="media/agentrewind-demo.mp4">
+            Download the MP4
+          </a>
+          <a
+            class="button button-secondary"
+            href="https://github.com/Akshatkasera/codex-community-hackathon-del-AgentRewind"
+          >
+            Back to GitHub
+          </a>
+        </div>
+      </section>
+
+      <section class="gallery">
+        <div class="section-heading">
+          <p class="eyebrow">Product Screens</p>
+          <h2>What the debugger looks like in action.</h2>
+        </div>
+
+        <div class="gallery-grid">
+          <figure class="card">
+            <img src="images/screenshot-overview.png" alt="AgentRewind overview" />
+            <figcaption>
+              Timeline, diagnosis, and comparison panels in the main debugger.
+            </figcaption>
+          </figure>
+          <figure class="card">
+            <img src="images/screenshot-import.png" alt="AgentRewind import flow" />
+            <figcaption>
+              Import a trace from common multi-agent frameworks or custom JSON.
+            </figcaption>
+          </figure>
+          <figure class="card">
+            <img src="images/screenshot-replay.png" alt="AgentRewind replay view" />
+            <figcaption>
+              Replay from the broken step and compare the repaired branch.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
