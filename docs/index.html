@@ -43,29 +43,29 @@
       <section class="video-section" id="watch">
         <div class="section-heading">
           <p class="eyebrow">Launch Film</p>
-          <h2>Watch the full AgentRewind demo with audio.</h2>
+          <h2>Watch the full AgentRewind demo at full quality.</h2>
           <p>
-            This page is the GitHub-native workaround for README video limits. The
-            video below plays directly with controls instead of linking to a raw MP4.
+            The embedded player below renders the original 1920×1080 launch film
+            directly in the browser, so it stays much sharper than the compressed
+            fallback MP4.
           </p>
         </div>
 
         <div class="video-frame">
-          <video
-            controls
-            preload="metadata"
-            poster="images/screenshot-overview.png"
-            playsinline
-          >
-            <source src="media/agentrewind-demo.mp4" type="video/mp4" />
-            Your browser does not support embedded video. Use the download link
-            below.
-          </video>
+          <iframe
+            src="film/"
+            title="AgentRewind launch film"
+            loading="lazy"
+            allowfullscreen
+          ></iframe>
         </div>
 
         <div class="video-links">
+          <a class="button button-primary" href="film/">
+            Open the full-quality film
+          </a>
           <a class="button button-primary" href="media/agentrewind-demo.mp4">
-            Download the MP4
+            Download the fallback MP4
           </a>
           <a
             class="button button-secondary"
