@@ -23,11 +23,11 @@
 ## Demo Video
 
 GitHub renders animated images reliably in READMEs, so the inline preview below is a silent GIF.
-Use the narrated MP4 link underneath to hear the voiceover.
+Use the full launch-film link underneath to watch the complete demo.
 
 [![Watch the AgentRewind demo video](docs/images/agentrewind-demo-preview.gif)](docs/media/agentrewind-demo.mp4)
 
-[Watch the narrated MP4 with sound](https://github.com/Akshatkasera/codex-community-hackathon-del-AgentRewind/raw/main/docs/media/agentrewind-demo.mp4)
+[Watch the full AgentRewind launch film](https://github.com/Akshatkasera/codex-community-hackathon-del-AgentRewind/raw/main/docs/media/agentrewind-demo.mp4)
 
 [Download the full demo video](docs/media/agentrewind-demo.mp4)
 
