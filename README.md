@@ -22,9 +22,7 @@
 
 ## Demo Video
 
-Open the preview below to watch the AgentRewind demo video.
-
-[![Watch the AgentRewind demo video](docs/images/screenshot-overview.png)](https://akshatkasera.github.io/codex-community-hackathon-del-AgentRewind/)
+https://github.com/user-attachments/assets/f29a3a6e-6b7e-4435-83cb-66ab01401ec5
 
 ## What AgentRewind Is
 
