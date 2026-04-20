@@ -22,14 +22,9 @@
 
 ## Demo Video
 
-Use the live demo page below to watch the full launch film with controls and audio.
-The inline preview in the README stays a GIF because GitHub does not reliably render committed MP4 files as an embedded player in repository Markdown.
+Open the preview below to watch the AgentRewind demo video.
 
-[![Watch the AgentRewind demo video](docs/images/agentrewind-demo-preview.gif)](https://akshatkasera.github.io/codex-community-hackathon-del-AgentRewind/)
-
-[Watch the live AgentRewind demo page](https://akshatkasera.github.io/codex-community-hackathon-del-AgentRewind/)
-
-[Download the full demo video](https://github.com/Akshatkasera/codex-community-hackathon-del-AgentRewind/raw/main/docs/media/agentrewind-demo.mp4)
+[![Watch the AgentRewind demo video](docs/images/screenshot-overview.png)](https://akshatkasera.github.io/codex-community-hackathon-del-AgentRewind/)
 
 ## What AgentRewind Is
 
